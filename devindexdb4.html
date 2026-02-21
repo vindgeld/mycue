@@ -1,0 +1,1332 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>kolsote</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --bg-base: #0f111a;
+            --bg-surface: #1a1c2e;
+            --accent-primary: #7c4dff;
+            --text-main: #e0e0e0;
+            --text-muted: #94a3b8;
+            --font-mono: "JetBrains Mono", "Roboto Mono", monospace;
+            --playhead-pos: 100px; 
+            --header-height: 7vh;
+            --current-time: 0;
+            --scroll-x: 0px;
+            --pps: 40; /* PIXELS_PER_SECOND */
+            --playhead-offset: 100px;
+            --current-time: 0;
+        } 
+
+        /* --- LAYOUT FIX --- */
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+        }
+        .timeline-row {
+    position: relative;
+    height: 40px;
+    width: 10000%; /* Very wide to prevent wrapping */
+    will-change: transform;
+}
+    /* --- PAGES --- */
+        .page { display: none; height: 100%; flex-direction: column; }
+        .page.active { display: flex; }
+
+        /* --- SHARED HEADER --- */
+        .app-header {
+            height: var(--header-height);background: #000;
+            border-bottom: 1px solid #333;
+            display: flex;align-items: center;
+            padding: 0 15px;gap: 15px;flex-shrink: 0;}
+        .header-title {color: var(--accent-primary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* --- PROJECT PAGE --- */
+        #project-list { flex: 1; overflow-y: auto; padding: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; align-content: start; }
+        .project-card { 
+            background: var(--bg-surface); border: 1px solid #333; border-radius: 8px; 
+            padding: 20px; cursor: pointer; transition: transform 0.1s; position: relative;
+        }
+        .project-card:hover { border-color: var(--accent-primary); transform: translateY(-2px); }
+        .project-card h3 { margin: 0 0 10px 0; font-size: 1.1rem; }
+        .project-card .stats { font-size: 0.7rem; color: var(--text-muted); }    
+        .project-header{display: flex;justify-content: space-between;align-items: flex-end;margin-bottom: 8px;gap: 15px;}
+        .project-header h3 {margin: 0;font-size: 1.1rem;white-space: normal;word-break: break-word;line-height: 1.3;}
+        /* --- BUTTONS --- */
+        .btn-icon { background: #333; border: none; color: white; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 0.7rem; font-weight: bold; }
+        .btn-new { background: var(--accent-primary); padding: 10px 20px; }
+        .btn-back { background: #444; }
+        /* --- DASHBOARD --- */
+        .dashboard {
+            height:10vh;width:100vw;background: #000; display:none;
+            grid-template-columns: 1fr 2fr 1fr; align-items: center;
+            padding: 0 10px; border-bottom: 1px solid #222;
+        }
+        .dash-section { text-align: center; }
+        .big-cam { font-size: 2.2rem; font-weight: 900; line-height: 1; }
+        .label { font-size: 0.55rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); }
+        .countdown-timer { font-family: var(--font-mono); font-size: 2.8rem; color: #ff5252; font-variant-numeric: tabular-nums; }    
+        /* --- CONTROLS BAR --- */
+        .view-controls {
+            background: #151515; display: flex; flex-direction: column;
+            padding: 10px; gap: 10px; border-bottom: 2px solid #333; flex-shrink: 0;
+        }
+        .ctrl-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .ctrl-group { display: flex; align-items: center; gap: 4px; }
+        .pane-label { color: var(--accent-primary); font-weight: 900; width: 60px; font-size: 0.65rem; }    
+        .ctrl-del { display: flex; justify-content: space-between; align-items: center; gap: 10px;}    
+    
+        select.view-select, .input-url { 
+            background: #000; color: #fff; border: 1px solid #444; padding: 4px; 
+            border-radius: 4px; font-size: 0.7rem; outline: none; 
+        }
+        .input-url { width: 120px; }
+        .toggle-btn { 
+            background: #333; color: #888; border: none; padding: 4px 8px; 
+            border-radius: 3px; font-size: 0.65rem; cursor: pointer; font-weight: bold;
+        }
+        .toggle-btn.active { background: var(--accent-primary); color: white; }
+        /* --- VIDEO CONTAINER --- */
+        .video-container {
+            background: #000; height: 0; overflow: hidden; position: relative;
+            transition: height 0.3s ease; border-bottom: 1px solid #333; flex-shrink: 0;
+        }
+        .video-container.active { height: 200px; }
+        #local-video, #yt-player { width: 100%; height: 100%; object-fit: contain; }
+        /* --- MAIN CONTENT FILL --- */
+        .main-content { 
+    flex: 1; 
+    display: flex; 
+    flex-direction: column; 
+    background: #000; 
+    overflow: hidden; 
+    position: relative; 
+    height: 100%; /* Ensure it tries to take full height */
+}
+
+.view-pane { 
+    position: relative; 
+    overflow-y: auto; 
+    overflow-x: hidden; 
+    background: var(--bg-base); 
+    scrollbar-width: thin;
+    overflow-anchor: none; 
+    transition: none !important; 
+    flex-grow: 1; /* This tells the pane to expand into empty space */
+}
+     
+        /* Visibility Toggles */
+        .view-pane.hide-time .time-tag { display: none; }
+        .view-pane.hide-inst .instruction-text { display: none; }
+        .view-pane.hide-lyric .lyric-text { display: none; }
+        .single-view #filter-pane, .single-view #resizer { display: none; }
+        .single-view #master-pane { height: 100%; }
+        .split-view #master-pane { height: 70%; min-height: 80px; }
+        .split-view #filter-pane { flex: 1; min-height: 80px; }
+        .resizer { height: 40px;user-select: none; touch-action: none;background: #222; cursor: row-resize; z-index: 500; display: flex; align-items: center; justify-content: flex-start; flex-shrink: 0; border-top: 1px solid #333; border-bottom: 1px solid #333; }        
+        .monitor-countdown-box {padding: 1px 10px; font-size: 0.7rem;border-radius: 4px; display: flex; align-items: center; gap: 8px;}
+        /* --- CUE LIST ITEMS --- */
+        .playhead-line {
+            position: absolute; top: 0; left: var(--playhead-pos);
+            width: 1px; height: 100%; background-color: rgba(255,255,255,0.1);
+            z-index: 100; pointer-events: none;
+        }    
+        .cue-line {background-color:#2E2E2E;display: flex; min-height: 50px; align-items: stretch; border-bottom: 5px solid var(--bg-base); position: relative; cursor: pointer; }
+        .cue-line.active-row {border: 1px solid rgba(255,0,0,0.7);box-sizing: border-box;/*background-color: rgba(124, 77, 255, 0.9);*/}
+        .cue-line.selected { border-right: 4px solid red; background: rgba(255,255,255,0.1); }
+        .cue-index { z-index:30; background-color:var(--bg-base); width: 50px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; color:#888; font-weight: bold; border-right: 1px solid #222; }
+        .camera-badge { z-index:2;border-radius:15px 0 0 15px;width: 50px;display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: bold; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }    
+        .instruction-content { flex: 1; padding: 6px 10px; z-index: 10; pointer-events: none; display: flex; flex-direction: column; justify-content: center; }
+        .instruction-text { font-weight: 600; font-size: 0.9rem; }
+        .lyric-text { font-size: 0.8rem; color: var(--text-muted); font-style: italic; margin-top: 2px; }
+        .time-tag { font-size: 0.7rem; opacity: 0.6; margin-left: 6px; font-weight: normal; }
+        .timeline-track { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+        /* --- GPU ACCELERATED TIMELINE --- */
+.bar-block {
+    position: absolute;top:0px;bottom: 0px;left: 0; 
+    /* The magic formula: (MyStartTime * PixelsPerSecond) - TotalScroll + PlayheadPadding */
+    transform: translateX(calc((var(--abs-start) * var(--pps) * 1px) - var(--scroll-x) + var(--playhead-offset)));    
+    width: calc(var(--duration) * var(--pps) * 1px) !important;
+    will-change: transform;opacity:0.6;
+    transition: none !important;}
+
+.progress-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.3);
+    width: 100%;
+    transform-origin: left;
+    /* We will update this per-cue or globally */
+    transform: scaleX(var(--progress-percent, 0));
+    will-change: transform;
+}
+    
+        /* --- FOOTER --- */
+        .tombolinstant{background:transparent;position:fixed;left:15px;bottom:55px;margin: auto;display:none;flex-direction:column;align-items: flex-end;z-index:31;gap:3px;}        
+        .action-btn { padding: 10px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; border: none; font-size: 0.75rem; text-transform: uppercase;}
+        .btn-start { background: #2e7d32; color: white; min-width: 80px; height:8vh}
+        .btn-pause { background: #d32f2f; color: white; min-width: 80px; height:8vh}    
+        .tmblplay {z-index:501;position:fixed;right:10px;bottom:20vh;border: none; cursor: pointer;background:transparent;}    
+        .timer {position:fixed;left:50%;transform: translateX(-50%);bottom:3px;margin: auto;display:flex;flex-direction:row;align-items: flex-end;z-index:50;gap:3px;}    
+        .tigatmbl{z-index:501;position:fixed;right:10px;bottom:3px;margin: auto;display:flex;flex-direction:column;gap:5px;background:transparent;transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);}
+        .btn-mark { background:maroon; color: white; border: 1px solid yellow; }
+        .btn-danger { background: #b71c1c; color: white; }
+        #global-timer { font-family: var(--font-mono); font-size: 1.2rem; color:white; background:var(--bg-base);min-width: 100px; }
+        /* --- MODAL --- */
+        .modal { display: none; position: fixed; z-index: 2000; inset: 0; background: rgba(0,0,0,0.9); }
+        .modal-content { background: var(--bg-surface); margin: 5% auto; padding: 20px; width: 90%; max-width: 400px; border-radius: 8px; }
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; margin-bottom: 5px; color: var(--text-muted); font-size: 0.7rem; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px; background: #000; border: 1px solid #444; color: #fff; box-sizing: border-box; }
+        .color-preview { height: 12px; width: 100%; border-radius: 2px; margin-top: 5px; border: 1px solid #444; }    
+        /* --- SIDE PANEL --- */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }  
+        @keyframes slideInFromBottom { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes slideOutToBottom { from { transform: translateY(0); } to { transform: translateY(100%); } }  
+        @keyframes slideInFromRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes slideOutToRight { from { transform: translateX(0); } to { transform: translateX(100%); } }
+        .panel {position: fixed;background-color: #1a1c2e;color: white;box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);z-index: 1000;visibility: hidden;overflow-y: auto;}  
+        #panel-bottom {top:var(--header-height);right: 0;background-color:transparent;color: black;}
+        #panel-bottom .panel-content{display:flex;flex-direction:column;align-items:center;gap:3px;}
+        #panel-right {top: 0;right: 0;height:auto;width: 300px;}
+        .panel.is-open { visibility: visible; }    
+        .panel.is-open .panel-content > * { animation: fadeIn 0.2s both; }
+        .panel.is-open .panel-content > *:nth-child(1) { animation-delay: 0.3s; }
+        .panel.is-open .panel-content > *:nth-child(2) { animation-delay: 0.4s; }
+        .panel.is-open .panel-content > *:nth-child(3) { animation-delay: 0.5s; }
+        .panel.is-open .panel-content > *:nth-child(4) { animation-delay: 0.6s; }
+        .panel.is-open .panel-content > *:nth-child(5) { animation-delay: 0.7s; }
+        .animate-in-bottom { animation: slideInFromBottom 0.4s forwards ease-out; }
+        .animate-out-bottom { animation: slideOutToBottom 0.3s forwards ease-in; }
+        .animate-in-right { animation: slideInFromRight 0.3s forwards ease-out; }
+        .animate-out-right { animation: slideOutToRight 0.3s forwards ease-in; }
+        .overlay {position: fixed;inset: 0;background-color: rgba(0, 0, 0, 0.6);z-index: 999;opacity: 0;visibility: hidden;transition: opacity 0.4s ease-out;}
+        .overlay.is-open { opacity: 1; visibility: visible; }
+        .menu-trigger {position:fixed;right:0;height:5vh;z-index:5;width:20vw;z-index:800; background:transparent;border:none;border-radius: 4px; cursor: pointer;}
+        
+        .hidden-checkbox {display: none;}
+        .button-checkbox {background: #333; color: #888; border: none; padding:8px 18px; border-radius: 3px; font-size:0.8rem; cursor: pointer; font-weight: bold;}
+        .button-checkbox.glow {background: var(--accent-primary); color: white;}
+        .instcheck {background: #333; color: #888; border: none; padding:5px 10px; border-radius: 3px; font-size:0.8rem; cursor: pointer; font-weight: bold;}
+         .video-controls {
+    padding: 10px;
+    display: flex;
+    justify-content:flex-end;
+    background: rgba(0,0,0,0.3);
+}
+#btn-resync {background: #333; color: #888; border: none; padding:5px 10px; border-radius: 3px; font-size:0.8rem; cursor: pointer; font-weight: bold;}    
+#btn-resync:active {
+    transform: scale(0.95);
+    filter: brightness(1.2);
+} 
+ </style>
+</head>
+<body>  
+    <div id="overlay" class="overlay"></div> 
+    <div id="page-projects" class="page active">
+        <header class="app-header">
+            <div class="header-title"><h2>kolsoté</h2></div>
+            <div><button data-target-panel="panel-bottom" style="display: flex;align-items: center;background:transparent;height:5vh;border:0;overflow: hidden"><img src="icon.png" style="height: 100%;width: auto;max-height: 100%;object-fit: contain;opacity:0.7;"></button></div>            
+            <div id="panel-bottom" class="panel" data-direction="bottom">
+                  <div class="panel-content">          
+                      <button class="btn-icon btn-new" onclick="createNewProject()">+ NEW PROJECT</button>
+                      <button class="btn-icon" style="background:#2e7d32;" onclick="exportToExcel()">EXPORT ALL (.xlsx)</button>
+                      <button class="btn-icon" style="background:#1565c0;" onclick="document.getElementById('import-excel').click()">IMPORT (.xlsx)</button>
+                      <input type="file" id="import-excel" accept=".xlsx" style="display:none" onchange="importFromExcel(event)">
+                      <button class="btn-icon btn-danger" onclick="clearAppCache()">CLEAR ALL CACHE</button>                      
+                  </div>
+            </div>            
+         </header>
+        <div id="project-list"></div>
+    </div>
+    
+    <div id="page-cues" class="page">
+        <header class="app-header">
+            <button class="btn-icon btn-back" onclick="showProjectsPage()">← BACK</button>
+            <div class="header-title" id="active-project-name" onclick="renameProject()">SONG TITLE</div>
+            <!--<button class="btn-icon btn-danger" style="opacity: 0.5;" onclick="deleteCurrentProject()">DELETE</button> -->
+    <button class="menu-trigger" data-target-panel="panel-right"><img src="icon.png" style="height: 100%;width: auto;max-height: 100%;object-fit: contain;opacity:0.7;"></button>                        
+        </header>
+    <div id="panel-right" class="panel" data-direction="right">
+        <div class="panel-content">
+            <div class="view-controls">
+                <div class="ctrl-row"><div class="pane-label">DASH:</div><input type="checkbox" id="toggleCheckbox" class="hidden-checkbox"><label for="toggleCheckbox" style="color:white" class="button-checkbox">SHOW DASHBOARD</label></div>                
+                <div class="ctrl-row"><div class="pane-label">LAYOUT:</div><select class="view-select" id="viewModeSelect" onchange="updateViewSettings()"><option value="single" selected>SINGLE</option><option value="split">SPLIT</option></select></div>
+                <div class="ctrl-row"><div class="pane-label">MASTER:</div><div class="ctrl-group"><button class="toggle-btn active" id="tog-master-time" onclick="toggleVisibility('master', 'time')">TIME</button><button class="toggle-btn active" id="tog-master-inst" onclick="toggleVisibility('master', 'inst')">INST</button><button class="toggle-btn active" id="tog-master-lyric" onclick="toggleVisibility('master', 'lyric')">LYRIC</button></div></div>
+                <div class="ctrl-row monitor-ctrls"><div class="pane-label">MONITOR:</div><div class="ctrl-group">
+                        <select class="view-select" id="camFilterSelect" onchange="updateViewSettings()">
+                            <option value="1">CAM 1</option><option value="2">CAM 2</option><option value="3">CAM 3</option>
+                            <option value="4">CAM 4</option><option value="5">CAM 5</option><option value="6">CAM 6</option>
+                            <option value="7">CAM 7</option><option value="8">CAM 8</option><option value="9">CAM 9</option>
+                            <option value="10">CAM 10</option>    
+                        </select>                
+                        <button class="toggle-btn active" id="tog-filter-time" onclick="toggleVisibility('filter', 'time')">TIME</button>
+                        <button class="toggle-btn active" id="tog-filter-inst" onclick="toggleVisibility('filter', 'inst')">INST</button>
+                        <button class="toggle-btn active" id="tog-filter-lyric" onclick="toggleVisibility('filter', 'lyric')">LYRIC</button></div></div>
+                <div class="ctrl-row"><div class="pane-label">LOCAL:</div><input type="file" id="video-upload" accept="video/*" style="display:none" onchange="loadLocalVideo(event)"><button class="toggle-btn" onclick="document.getElementById('video-upload').click()">OPEN FILE</button></div>
+                <div class="ctrl-row"><div class="pane-label">YOUTUBE:</div><input type="text" id="yt-url" class="input-url" placeholder="YouTube URL..."><button class="toggle-btn" onclick="loadYouTubeVideo()">LOAD</button></div>
+                <div class="ctrl-row"><div class="pane-label">PLAYER:</div><button class="toggle-btn" id="btn-video-pane" onclick="toggleVideoPane()">SHOW / CLOSE</button><!--</div><div class="video-controls">--><button id="btn-resync" class="btn" onclick="resyncYouTube()" title="Sync timeline to Video">Resync Video</button></div>                
+                <div class="ctrl-del"><input type="checkbox" id="toggleinst" style="display:none;"><label for="toggleinst" class="instcheck">Instant Cue Marker</label><button class="toggle-btn" style="margin-left: auto;color:yellow;opacity: 0.5;" onclick="clearAll()">delete all cues</button></div>
+                <button class="action-btn close-btn" style="width:100%;background:#444; color:white;">EXIT SETTINGS</button>
+            </div> 
+        </div>
+    </div>
+    
+    <div class="dashboard" id="myDiv">
+        <div class="dash-section"><div class="label">CAM</div><div id="dash-curr-cam" class="big-cam">--</div><div class="label">Lagi ON</div></div>
+        <div class="dash-section"><div class="label">NEXT CAM IN</div><div id="dash-countdown" class="countdown-timer">0.0</div></div>
+        <div class="dash-section"><div class="label">NEXT CAM</div><div id="dash-next-cam" style="font-size: 2.2rem;font-weight:bold;color:#4caf50;">--</div></div>
+    </div>
+
+    <div id="video-pane" class="video-container">
+        <video id="local-video" style="display:none" controls playsinline></video>
+        <div id="yt-player"></div>
+    </div>
+
+    <div class="main-content split-view" id="main-container">
+        <div class="view-pane" id="master-pane">
+            <div class="playhead-line"></div>
+            <div id="master-cue-list"></div>
+        </div>
+        
+        <div class="resizer" id="resizer">
+            <div class="monitor-countdown-box">
+                <span id="mon-cd-title" style="font-weight:bold; color:#888; text-transform:uppercase;">CAM 1 IN</span>
+                <span id="monitor-countdown" style="font-size:1.5rem; font-family:var(--font-mono); font-weight:bold; color:#4caf50;">--</span>
+            </div>
+            <span id="filter-header" style="margin-left:auto; margin-right:20px; font-size:0.6rem; font-weight:bold; color:var(--accent-primary); text-transform:uppercase;">Monitor: Cam 1</span>
+        </div>
+
+        <div class="view-pane" id="filter-pane">
+            <div id="filter-cue-list"></div>
+        </div>
+    </div>
+        <div class="tmblplay">
+            <button class="action-btn btn-start" id="startBtn" onclick="togglePlayback()">START</button>  
+        </div>        
+        <div class="tigatmbl">
+            <button style="background: #333; color: #888; border: 1px dashed #888; padding: 10px 10px;border-radius: 4px; font-weight: bold;" onclick="openModal('add')">ADD</button>
+            <button style="background: #333; color: #888; border: 1px dashed #888; padding: 10px 10px;border-radius: 4px; font-weight: bold;" onclick="openModal('edit')">EDIT</button>
+            <button style="background: maroon; color: #888; border: 1px dashed #888; padding: 10px 10px;border-radius: 4px; font-weight: bold;" onclick="deleteCue()">DEL</button>                                    
+        </div>
+        
+    <div class="tombolinstant" id="tombolinstant">                
+        <button class="action-btn btn-mark" onclick="liveMark()">MARK Cue</button>
+    </div>
+        <div class="timer">
+            <span id="global-timer">00:00:00.0</span>    
+        </div>
+  </div>
+    
+    <div id="cueModal" class="modal">
+        <div class="modal-content">
+            <h3 id="modalTitle" style="margin-top:0; color:white;">Edit Cue</h3>
+            <div class="form-group">
+                <input type="hidden" id="editIndex">
+                <label>Camera #</label><input type="number" id="newCam" oninput="autoSuggestColor()">
+                <label>Color Badge</label>
+                <select id="newColor" onchange="updateColorPreview()">
+                    <option value="#d32f2f">Red</option><option value="#388e3c">Green</option>
+                    <option value="#1976d2">Blue</option><option value="#fbc02d">Yellow</option>
+                    <option value="#7b1fa2">Purple</option><option value="#00bcd4">Cyan</option>
+                    <option value="#e65100">Orange</option><option value="#5F9EA0">CadetBlue</option>
+                    <option value="#9ACD32">YellowGreen</option><option value="#D2691E">Chocolate</option>                    
+                </select>
+                <div id="colorPreview" class="color-preview"></div>
+                <label>Duration (Seconds)</label><input type="number" step="0.1" id="newTime">
+                <label>Instruction</label><input type="text" id="newText">
+                <label>Lyrics / Script</label><textarea id="newLyric" rows="3"></textarea>
+            </div>
+            <button onclick="saveCue()" class="action-btn" style="background:#1565c0; color:white; width:100%;">SAVE CUE</button>
+            <button onclick="closeModal()" class="action-btn" style="width:100%; margin-top:10px; background:#333; color:#ccc;">CANCEL</button>
+        </div>
+    </div>
+    <!-- tempplate cue line -->
+    <template id="cue-template">
+    <div class="cue-line">
+        <div class="cue-index"></div>
+        <div class="camera-badge"></div>
+        <div class="instruction-content">
+            <span class="instruction-text">
+                <span class="cue-text-val"></span> 
+                <span class="time-tag"></span>
+            </span>
+            <span class="lyric-text"></span>
+        </div>
+        <div class="timeline-track">
+            <div class="bar-block">
+                <div class="progress-overlay"></div>
+            </div>
+        </div>
+    </div>
+</template>
+      
+   
+    <script>
+      /* --- INDEXEDDB CONFIG --- */
+const DB_NAME = "kolsote_db";
+const STORE_NAME = "projects";
+const DB_VERSION = 1;
+
+// Helper to open DB and return a Promise
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME, { keyPath: "id" });
+            }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+// Rewritten: Loads all projects into allProjects array
+async function initDatabase() {
+    try {
+        const db = await openDB();
+        const transaction = db.transaction(STORE_NAME, "readonly");
+        const store = transaction.objectStore(STORE_NAME);
+        const request = store.getAll();
+
+        request.onsuccess = () => {
+            allProjects = request.result || [];
+            // If empty, look for legacy localStorage data as a backup
+            if (allProjects.length === 0) {
+                const legacy = localStorage.getItem('cueApp_Projects_Database');
+                if (legacy) {
+                    allProjects = JSON.parse(legacy);
+                    saveToDisk(); // Migrate to IndexedDB
+                }
+            }
+            renderProjects();
+        };
+    } catch (err) {
+        console.error("Database initialization failed:", err);
+    }
+}
+
+   // Replace the existing saveToDisk with this optimized version
+async function saveToDisk() {
+    if (!activeProjectId) return;
+
+    const idx = allProjects.findIndex(p => p.id === activeProjectId);
+    if (idx !== -1) allProjects[idx].cues = cueData;
+
+    try {
+        const db = await openDB();
+        const transaction = db.transaction(STORE_NAME, "readwrite");
+        const store = transaction.objectStore(STORE_NAME);
+        
+        // Only put the specific active project instead of the whole array
+        const projectToSave = allProjects[idx];
+        store.put(projectToSave);
+        
+        console.log("Active project saved to IndexedDB.");
+    } catch (err) {
+        console.error("IndexedDB Save Failed:", err);
+    }
+} 
+
+// Rewritten: Handles UI loading after DB is confirmed
+async function openProject(id) {
+    const proj = allProjects.find(p => p.id === id);
+    if (!proj) return;
+    
+    activeProjectId = id;
+    cueData = proj.cues;
+    
+    document.getElementById('active-project-name').innerText = proj.name;
+    document.getElementById('page-projects').classList.remove('active');
+    document.getElementById('page-cues').classList.add('active');
+    
+    renderCues();
+    updateViewSettings();
+}    
+    
+    
+    // checkbox instantmark
+    const toggleCheckbox2 = document.getElementById('toggleinst');
+        const inst = document.getElementById('tombolinstant');
+        const buttonCheckbox2 = document.querySelector('.instcheck');
+        toggleCheckbox2.addEventListener('change', function() {
+            if (this.checked) {
+                inst.style.display = 'flex';                 
+            } else {
+                inst.style.display = 'none';                
+            }
+        });
+    
+    let ytApiReady = false; 
+window.onYouTubeIframeAPIReady = () => {
+    ytApiReady = true;};
+    
+    /* --- MULTI-PROJECT STATE --- */
+    const PROJECTS_STORAGE_KEY = 'cueApp_Projects_Database';
+    let allProjects = [];
+    let activeProjectId = null;
+    let cueData = []; // Refers to the current project's cues
+    
+ 
+        /* --- SIDE PANEL LOGIC --- */
+        document.addEventListener("DOMContentLoaded", () => {
+            const overlay = document.getElementById("overlay");
+            let activePanel = null;
+
+            const openPanel = (id) => {
+                const panel = document.getElementById(id);
+                if (!panel || activePanel) return;
+                const dir = panel.dataset.direction;
+                panel.classList.add("is-open", `animate-in-${dir}`);
+                overlay.classList.add("is-open");
+                activePanel = panel;
+                document.body.style.overflow = "hidden";
+            };
+            const closePanel = () => {
+                if (!activePanel) return;
+                
+                const dir = activePanel.dataset.direction;
+                activePanel.classList.remove(`animate-in-${dir}`);
+                activePanel.classList.add(`animate-out-${dir}`);
+                overlay.classList.remove("is-open");
+                // Wait for animation to finish before hiding
+                activePanel.addEventListener("animationend", () => {
+                    activePanel.classList.remove("is-open", `animate-out-${dir}`);
+                    activePanel = null;
+                    document.body.style.overflow = "";
+                }, { once: true });
+            };
+
+            // Event Listeners
+            document.querySelectorAll("[data-target-panel]").forEach(btn => {btn.addEventListener("click", () => openPanel(btn.dataset.targetPanel));});
+            document.querySelectorAll(".close-btn").forEach(btn => {btn.addEventListener("click", closePanel);});
+            overlay.addEventListener("click", closePanel);          
+            document.addEventListener("keydown", e => { 
+                if (e.key === "Escape") closePanel(); 
+            });
+        });
+    
+    function renderProjects() {
+    const list = document.getElementById('project-list');
+    list.innerHTML = allProjects.map(p => `
+        <div class="project-card" onclick="openProject(${p.id})">
+            <div class="project-header" style="display: flex; justify-content: space-between;">
+                <h3>${sanitizeHTML(p.name)}</h3>
+                <button class="toggle-btn" onclick="event.stopPropagation(); deleteProjectById(${p.id})">
+                    delete
+                </button>
+            </div>
+            <div class="stats">${p.cues.length} Cues | ~${p.cues.reduce((acc, c) => acc + c.time, 0).toFixed(0)}s total</div>                        
+        </div>            
+    `).join('');
+}
+    
+    // Add this helper function
+function sanitizeHTML(str) {
+    const temp = document.createElement('div');
+    temp.textContent = str;
+    return temp.innerHTML;
+}
+ 
+    function createNewProject() {
+        const name = prompt("Enter Project/Song Name:", "New one");
+        if (!name) return;
+        const newProj = {
+            id: Date.now(),
+            name: name,
+            cues: [{ cam: 1, color: '#d32f2f', time: 5, text: "type of shot", lyric: "liriknya" }]
+        };
+        allProjects.push(newProj);
+        saveToDisk();
+        renderProjects();        
+    }
+
+    async function deleteProjectById(id) {
+    if (!confirm("Delete this project?")) return;
+    
+    const db = await openDB();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    await tx.objectStore(STORE_NAME).delete(id);
+    
+    allProjects = allProjects.filter(p => p.id !== id);
+    renderProjects();
+}
+  //  function openProject(id) {
+    //    const proj = allProjects.find(p => p.id === id);
+      //  if (!proj) return;
+   //     activeProjectId = id;
+     //   cueData = proj.cues;
+       // document.getElementById('active-project-name').innerText = proj.name;
+   //    document.getElementById('page-projects').classList.remove('active');
+   //    document.getElementById('page-cues').classList.add('active');
+   //     renderCues();
+   //     updateViewSettings();
+   // }
+
+    function showProjectsPage() {
+        if (isRunning) togglePlayback(); // Stop if running
+        const vid = document.getElementById('local-video');
+    if (vid && vid.src && vid.src.startsWith('blob:')) {
+        URL.revokeObjectURL(vid.src);
+        vid.src = ""; // Clear the source to prevent the browser from trying to reload it
+        console.log("Local video object URL revoked to free memory.");
+    }
+        vid.style.display = 'none';
+        document.getElementById('yt-player').style.display = 'none';
+        document.getElementById('video-pane').classList.remove('active');
+        const current = getCurrentTime();
+        if (playerType === 'local') document.getElementById('local-video').pause();
+        else if (playerType === 'youtube' && ytPlayer) ytPlayer.pauseVideo();
+        
+        playerType = 'none';
+        pausedAt = current;
+        if (isRunning) startTime = performance.now() - (current * 1000);
+        
+        saveToDisk();
+        document.getElementById('page-cues').classList.remove('active');
+        document.getElementById('page-projects').classList.add('active');
+        renderProjects();
+        
+    }    
+
+    function renameProject() {
+        const proj = allProjects.find(p => p.id === activeProjectId);
+        const newName = prompt("Rename Project:", proj.name);
+        if (newName) {
+            proj.name = newName;
+            document.getElementById('active-project-name').innerText = newName;
+            saveToDisk();
+        }
+    }
+
+    function deleteCurrentProject() {
+        if (confirm("Delete this entire project? This cannot be undone.")) {
+            allProjects = allProjects.filter(p => p.id !== activeProjectId);
+            activeProjectId = null;
+            saveToDisk();
+            showProjectsPage();
+        }
+    }
+    
+    
+        /* --- DASHBOARD TOGGLE --- */
+        const toggleCheckbox = document.getElementById('toggleCheckbox');
+        const myDiv = document.getElementById('myDiv');
+        const buttonCheckbox = document.querySelector('.button-checkbox');
+        toggleCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                myDiv.style.display = 'grid'; 
+                buttonCheckbox.classList.add('glow');
+            } else {
+                myDiv.style.display = 'none';
+                buttonCheckbox.classList.remove('glow');
+            }
+        });
+    /* --- CORE APP LOGIC --- */
+// const STORAGE_KEY = 'cueApp_Definitive_Data';
+const PRESETS = ['#d32f2f', '#388e3c', '#1976d2', '#fbc02d', '#7b1fa2', '#00bcd4', '#e65100', '#5F9EA0', '#9ACD32', '#D2691E'];
+const PIXELS_PER_SECOND = 40;
+let isRunning = false;
+let startTime = null;
+let pausedAt = 0;
+let animationId = null;
+let selectedIndex = 0;
+let currentFilterCam = "1";
+let playerType = 'none';
+let ytPlayer = null;
+let lastScrolledIdx = -1;
+//let visSettings = { master: {time: true, inst: true, lyric: true}, filter: {time: true, inst: true, lyric: true} };
+const playheadOffset = 100;
+    // Change your let declaration to load from storage if available
+let savedVis = localStorage.getItem('cueApp_Vis_Flags');
+let visSettings = savedVis ? JSON.parse(savedVis) : { 
+    master: {time: true, inst: true, lyric: true}, 
+    filter: {time: true, inst: true, lyric: true} 
+};
+
+        async function persistUISettings() {
+    const state = {
+        viewMode: document.getElementById('viewModeSelect').value,
+        camFilter: document.getElementById('camFilterSelect').value,
+        visSettings: visSettings
+    };
+    localStorage.setItem('cueApp_UI_State', JSON.stringify(state));
+}
+
+window.onload = async () => {
+    // 1. Load Projects from DB
+    await initDatabase();
+    
+    // 2. Load UI Settings from LocalStorage
+    const savedState = localStorage.getItem('cueApp_UI_State');
+    if (savedState) {
+        const state = JSON.parse(savedState);
+        document.getElementById('viewModeSelect').value = state.viewMode;
+        document.getElementById('camFilterSelect').value = state.camFilter;
+        visSettings = state.visSettings;
+    } else {
+        // Fallback for older vis settings
+        const savedVis = localStorage.getItem('cueApp_Vis_Flags');
+        if (savedVis) visSettings = JSON.parse(savedVis);
+    }
+    
+    // 3. Initialize UI
+    applyVisibility();
+    updateViewSettings(false); // Init without overwriting save state
+    
+    // 4. Force checkbox state for Dashboard
+    const toggleCheckbox = document.getElementById('toggleCheckbox');
+    if (toggleCheckbox) {
+        document.getElementById('myDiv').style.display = toggleCheckbox.checked ? 'grid' : 'none';
+    }
+};
+    function calculateTimeline() {
+    let total = 0;
+    cueData.forEach((cue, i) => {
+        cue.absStart = total;
+        total += cue.time;
+        cue.globalIndex = i;
+    });
+}
+      function renderCues() {
+    calculateTimeline(); 
+    const masterList = document.getElementById('master-cue-list');
+    const filterList = document.getElementById('filter-cue-list');
+    const template = document.getElementById('cue-template');
+
+    const createCueElement = (cue, i, isFilter) => {
+        const clone = document.importNode(template.content, true);
+        const root = clone.querySelector('.cue-line');
+        const prefix = isFilter ? 'filter-' : '';
+
+        root.id = `${prefix}line-${cue.globalIndex}`;
+        if (i === selectedIndex && !isFilter) root.classList.add('selected');
+
+        root.querySelector('.cue-index').textContent = cue.globalIndex + 1;
+        const badge = root.querySelector('.camera-badge');
+        badge.textContent = cue.cam;
+        badge.style.backgroundColor = cue.color;
+
+        root.querySelector('.cue-text-val').textContent = cue.text;
+        root.querySelector('.time-tag').textContent = `(${cue.time.toFixed(1)}s)`;
+        root.querySelector('.lyric-text').textContent = cue.lyric || '';
+
+        const bar = root.querySelector('.bar-block');
+        bar.style.backgroundColor = cue.color;
+        
+        // Pass the start time and duration to the GPU
+        bar.style.setProperty('--abs-start', cue.absStart);
+        bar.style.setProperty('--duration', cue.time);
+
+        // Crucial: ID for the animation loop to find the bar
+        if (!isFilter) bar.id = `bar-${cue.globalIndex}`;
+
+        root.onclick = () => selectCue(cue.globalIndex);
+        return root;
+    };
+
+    masterList.innerHTML = '';
+    cueData.forEach((cue, i) => masterList.appendChild(createCueElement(cue, i, false)));
+
+    filterList.innerHTML = '';
+    cueData.filter(c => String(c.cam) === String(currentFilterCam))
+            .forEach(cue => filterList.appendChild(createCueElement(cue, cue.globalIndex, true)));
+
+    saveToDisk();
+    if (!isRunning) updateDashboard(getCurrentTime(), selectedIndex);
+}
+
+        function getCurrentTime() {
+            if (playerType === 'local') return document.getElementById('local-video').currentTime;
+            if (playerType === 'youtube' && ytPlayer && ytPlayer.getCurrentTime) return ytPlayer.getCurrentTime();
+            return isRunning ? (performance.now() - startTime) / 1000 : pausedAt;
+        }
+
+        function seekTo(seconds) {
+            if (playerType === 'local') document.getElementById('local-video').currentTime = seconds;
+            else if (playerType === 'youtube' && ytPlayer && ytPlayer.seekTo) ytPlayer.seekTo(seconds, true);
+            
+            if (!isRunning) {
+                pausedAt = seconds;
+            } else {
+                startTime = performance.now() - (seconds * 1000);
+            }
+            updateLoop();
+        }
+
+        function togglePlayback() {
+            const btn = document.getElementById('startBtn');
+            if (!isRunning) {
+                if (playerType === 'local') document.getElementById('local-video').play();
+                else if (playerType === 'youtube' && ytPlayer) ytPlayer.playVideo();
+                startTime = performance.now() - (pausedAt * 1000);
+                isRunning = true;
+                btn.innerText = "PAUSE";
+                btn.className = "action-btn btn-pause";
+                animationId = requestAnimationFrame(updateLoop);
+            } else {
+                if (playerType === 'local') document.getElementById('local-video').pause();
+                else if (playerType === 'youtube' && ytPlayer) ytPlayer.pauseVideo();
+                pausedAt = getCurrentTime();
+                isRunning = false;
+                cancelAnimationFrame(animationId);
+                btn.innerText = "RESUME";
+                btn.className = "action-btn btn-start";
+            }
+        }
+    
+    function resyncYouTube() {
+    if (playerType === 'youtube' && ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
+        const ytTime = ytPlayer.getCurrentTime();
+        
+        // Force the app's internal clock to match the video exactly
+        // performance.now() is in ms, ytTime is in seconds
+        startTime = performance.now() - (ytTime * 1000);
+        
+        // Provide visual feedback
+        const btn = document.getElementById('btn-resync');
+        const originalText = btn.innerHTML;
+        
+        btn.innerHTML = "✅ SYNCED";
+        btn.style.background = "#4caf50";
+        
+        console.log(`[kolsote] Resynced to YouTube at: ${ytTime.toFixed(2)}s`);
+
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.style.background = "";
+        }, 1500);
+    } else {
+        alert("YouTube player is not active or video hasn't loaded.");
+    }
+}
+ /* --- PERFORMANCE STATE --- */
+let lastActiveIdx = -1;
+
+function updateLoop() {
+    const now = getCurrentTime();
+    
+    // 1. Move the timeline visual (GPU)
+    const scrollX = now * PIXELS_PER_SECOND;
+    document.documentElement.style.setProperty('--scroll-x', `${scrollX}px`);
+    document.documentElement.style.setProperty('--current-time', now);
+
+    // 2. Find which cue is currently active
+    const activeIdx = cueData.findIndex(c => now >= c.absStart && now < (c.absStart + c.time));
+
+    // 3. Update all Dashboard and Monitor visuals
+    if (activeIdx !== -1) {
+        const activeCue = cueData[activeIdx];
+        const percent = (now - activeCue.absStart) / activeCue.time;
+
+        // Update the active bar's inner progress percentage
+        const activeBar = document.getElementById(`bar-${activeIdx}`);
+        if (activeBar) {
+            activeBar.style.setProperty('--progress-percent', Math.min(Math.max(percent, 0), 1));
+        }
+
+        // TICK THE DASHBOARD AND MONITOR (These were missing from your loop)
+        updateDashboard(now, activeIdx); 
+        updateMonitorCountdown(now, activeIdx);
+
+        // Handle Cue Switching (Scrolling the list when a new row starts)
+        if (activeIdx !== lastActiveIdx) {
+            updateActiveRowUI(activeIdx);
+            lastActiveIdx = activeIdx;
+        }
+    }
+
+    // 4. Update the Global Clock (bottom of screen)
+    const d = new Date(0);
+    d.setSeconds(now);
+    document.getElementById('global-timer').innerText = d.toISOString().substr(11, 10);
+
+    if (isRunning) {
+        animationId = requestAnimationFrame(updateLoop);
+    }
+}
+
+function updateActiveRowUI(idx) {
+    document.querySelectorAll('.cue-line').forEach(r => r.classList.remove('active-row'));
+    const row = document.getElementById(`line-${idx}`);
+    if (row) {
+        row.classList.add('active-row');
+        // Use 'nearest' so it doesn't jump aggressively
+        row.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+        function updateDashboard(now, idx) {
+            if (cueData.length === 0) {
+                document.getElementById('dash-curr-cam').innerText = "--";
+                document.getElementById('dash-countdown').innerText = "0.0";
+                document.getElementById('dash-next-cam').innerText = "--";
+                return;
+            }
+            const currentIdx = (idx !== -1) ? idx : selectedIndex;
+            const cue = cueData[currentIdx] || cueData[0];
+            const next = cueData[currentIdx + 1];
+            const camEl = document.getElementById('dash-curr-cam');
+            camEl.innerText = cue.cam; camEl.style.color = cue.color;
+            document.getElementById('dash-countdown').innerText = Math.max(0, (cue.absStart + cue.time) - now).toFixed(1);
+            document.getElementById('dash-next-cam').innerText = next ? `${next.cam}` : "END";
+        }
+
+    function updateMonitorCountdown(now, currentIdx) {
+    const display = document.getElementById('monitor-countdown');
+    const title = document.getElementById('mon-cd-title');
+    
+    if (cueData.length === 0) { 
+        display.innerText = "NONE"; 
+        return; 
+    }
+    
+    if (currentIdx === -1) currentIdx = 0;
+    
+    // Find the next (or current) cue for the monitored camera
+    let targetIdx = cueData.findIndex((c, i) => i >= currentIdx && String(c.cam) === String(currentFilterCam));
+    
+    if (targetIdx !== -1) {
+        const isCurrentlyActive = (targetIdx === currentIdx);
+        
+        // Calculate time until start (IN) or until end (OUT)
+        let timeUntil = isCurrentlyActive 
+            ? (cueData[targetIdx].absStart + cueData[targetIdx].time) - now 
+            : cueData[targetIdx].absStart - now;
+            
+        // Visual feedback: Red for active (OUT), Green for upcoming (IN)
+        display.style.color = isCurrentlyActive ? "#ff5252" : "#4caf50";
+        display.innerText = Math.max(0, timeUntil).toFixed(1) + "s";
+        
+        // Update the title label dynamically
+        if (title) {
+            title.innerText = isCurrentlyActive 
+                ? `CAM ${currentFilterCam} OUT:` 
+                : `CAM ${currentFilterCam} IN:`;
+        }
+    } else { 
+        display.innerText = "NONE"; 
+        display.style.color = "#888"; 
+        if (title) title.innerText = `CAM ${currentFilterCam} --`;
+    }
+}
+
+        function selectCue(i) {
+            selectedIndex = i;
+            lastScrolledIdx = -1;
+            seekTo(cueData[i].absStart);
+            renderCues();
+        }
+
+        function liveMark(camOverride) {
+            calculateTimeline();
+            let now = getCurrentTime();
+            if (cueData.length === 0) {
+                const firstCam = camOverride || 1;
+                cueData.push({ cam: firstCam, color: PRESETS[0], time: 5, text: "START", lyric: "" });
+                renderCues(); return;
+            }
+            let idx = isRunning ? cueData.findIndex(c => now >= c.absStart && now < c.absStart + c.time) : selectedIndex;
+            if (idx === -1) idx = cueData.length - 1;
+            const currentCue = cueData[idx];
+            if (isRunning) currentCue.time = Math.max(0.2, now - currentCue.absStart);
+            else { now = currentCue.absStart + currentCue.time; pausedAt = now; }
+            const nextCam = camOverride || ((parseInt(currentCue.cam) % 10) + 1);
+            cueData.splice(idx + 1, 0, { cam: nextCam, color: PRESETS[(nextCam - 1) % PRESETS.length] || '#fff', time: 5, text: isRunning ? "LIVE CUT" : "PLANNED", lyric: "" });
+            selectedIndex = idx + 1; renderCues();saveToDisk();
+        }
+
+        function deleteCue() {
+            if (cueData.length === 0) return;
+            if (confirm("Delete selected cue?")) {
+                cueData.splice(selectedIndex, 1);
+                selectedIndex = Math.max(0, cueData.length - 1);
+                renderCues();
+                saveToDisk();
+            }
+        }
+
+        function clearAll() { 
+    if (confirm("Delete all cues?")) { 
+        cueData = []; 
+        renderCues(); 
+        saveToDisk(); // Add this line!
+    } 
+}
+        /* --- VISIBILITY & VIEW --- */    
+        function updateSpecificVisibility(pane, type) {
+            const paneEl = document.getElementById(`${pane}-pane`);
+            const btn = document.getElementById(`tog-${pane}-${type}`);
+            const isVisible = visSettings[pane][type];
+            if (paneEl) {
+                if (isVisible) { paneEl.classList.remove(`hide-${type}`); if(btn) btn.classList.add('active'); }
+                else { paneEl.classList.add(`hide-${type}`); if(btn) btn.classList.remove('active'); }
+            }
+        }
+
+        function applyVisibility() {
+            ['master', 'filter'].forEach(pane => {
+                ['time', 'inst', 'lyric'].forEach(type => updateSpecificVisibility(pane, type));
+            });
+        }
+    
+
+function updateViewSettings(shouldPersist = true) {
+    const modeSelect = document.getElementById('viewModeSelect');
+    const camSelect = document.getElementById('camFilterSelect');
+    
+    currentFilterCam = camSelect.value;            
+    document.getElementById('main-container').className = `main-content ${modeSelect.value}-view`;
+    
+    // --- THE FIX ---
+    // If we are in single view, we MUST remove the height applied by the resizer
+    if (modeSelect.value === 'single') {
+        document.getElementById('master-pane').style.height = ''; 
+    }
+    // ---------------
+
+    document.getElementById('filter-header').innerText = `Monitor: Cam ${currentFilterCam}`;
+    document.getElementById('mon-cd-title').innerText = `CAM ${currentFilterCam} IN:`;
+    
+    renderCues();
+    if (shouldPersist) persistUISettings();
+}    
+
+    function toggleVisibility(pane, type) {
+    if (!visSettings[pane]) visSettings[pane] = {};
+    visSettings[pane][type] = !visSettings[pane][type];
+    
+    try {
+        localStorage.setItem('cueApp_Vis_Flags', JSON.stringify(visSettings));
+    } catch (e) {
+        console.error("Failed to save visibility settings:", e);
+    }
+    
+    updateSpecificVisibility(pane, type);
+}
+        /* --- VIDEO HANDLING FIX --- */
+      function toggleVideoPane() {
+    const container = document.getElementById('video-pane');
+    const btn = document.getElementById('btn-video-pane');
+    const masterPane = document.getElementById('master-pane'); // Added reference
+    
+    if (!container.classList.contains('active')) {
+        container.classList.add('active');
+        btn.classList.add('active');
+    } else {
+        const current = getCurrentTime();
+        if (playerType === 'local') document.getElementById('local-video').pause();
+        else if (playerType === 'youtube' && ytPlayer) ytPlayer.pauseVideo();
+        
+        playerType = 'none';
+        pausedAt = current;
+        if (isRunning) startTime = performance.now() - (current * 1000);
+        
+        container.classList.remove('active');
+        btn.classList.remove('active');
+
+        // --- THE FIX ---
+        // When closing the video, clear the manual height so the 
+        // cue list can expand to fill the newly empty space.
+        masterPane.style.height = '';
+    }
+}
+    
+        function loadLocalVideo(e) {
+    const file = e.target.files[0]; 
+    if (!file) return;
+    const vid = document.getElementById('local-video');
+    if (vid.src && vid.src.startsWith('blob:')) {
+        URL.revokeObjectURL(vid.src);
+    }
+    const currentSystemTime = getCurrentTime();        
+    // Hide YouTube if active
+    if (ytPlayer && typeof ytPlayer.pauseVideo === 'function') {
+        ytPlayer.pauseVideo();
+        document.getElementById('yt-player').style.display = 'none';
+    }
+    vid.src = URL.createObjectURL(file);
+    vid.style.display = 'block';
+    playerType = 'local';
+    document.getElementById('video-pane').classList.add('active');        
+    vid.onloadedmetadata = () => {
+        vid.currentTime = currentSystemTime;
+        if (isRunning) vid.play();
+    };
+}
+        /* --- UPDATED YOUTUBE LOAD WITH SAFETY --- */
+        function loadYouTubeVideo() {
+    if (!ytApiReady) {
+        alert("YouTube API is still loading. Please wait a few seconds.");
+        return;
+    }
+    
+    const vid = document.getElementById('local-video');
+    
+    // Clean up local video memory when switching to YouTube
+    if (vid.src && vid.src.startsWith('blob:')) {
+        URL.revokeObjectURL(vid.src);
+        vid.src = ""; // Clear the source
+    }
+    const url = document.getElementById('yt-url').value;
+    const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:.*v=|.*\/)([\w-]{11}))/);
+    
+    if (match && match[1]) {
+        const videoId = match[1];
+        const currentSystemTime = getCurrentTime();
+        
+        // UI Updates
+        document.getElementById('local-video').style.display = 'none'; 
+        document.getElementById('yt-player').style.display = 'block';
+        document.getElementById('video-pane').classList.add('active');
+        
+        if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
+            // OPTIMIZED: Reuse existing player for smoother transition
+            playerType = 'youtube';
+            ytPlayer.loadVideoById({
+                videoId: videoId,
+                startSeconds: currentSystemTime
+            });
+            if (!isRunning) ytPlayer.pauseVideo();
+        } else {
+            // INITIAL LOAD: Create the player for the first time
+            ytPlayer = new YT.Player('yt-player', {
+                height: '100%',
+                width: '100%',
+                videoId: videoId,
+                playerVars: { 'start': Math.floor(currentSystemTime) },
+                events: {
+                    'onReady': (event) => {
+                        playerType = 'youtube';
+                        if (isRunning) event.target.playVideo();
+                    }
+                }
+            });
+        }
+    } else {
+        alert("Invalid YouTube URL");
+    } 
+            document.getElementById('yt-url').value = "";
+}
+    
+        /* --- MODAL HANDLING --- */
+        function openModal(mode) {
+            const modal = document.getElementById('cueModal'); modal.style.display = 'block';
+            if (mode === 'edit' && cueData[selectedIndex]) {
+                const c = cueData[selectedIndex];
+                document.getElementById('editIndex').value = selectedIndex; 
+                document.getElementById('newCam').value = c.cam;
+                document.getElementById('newColor').value = c.color; 
+                document.getElementById('newTime').value = c.time;
+                document.getElementById('newText').value = c.text; 
+                document.getElementById('newLyric').value = c.lyric;
+            } else { 
+                document.getElementById('editIndex').value = "-1"; 
+                document.getElementById('newCam').value = ""; 
+                document.getElementById('newTime').value = "5"; 
+            }
+            updateColorPreview();
+        }
+        function closeModal() { document.getElementById('cueModal').style.display = 'none'; }
+        function autoSuggestColor() {
+            const cam = document.getElementById('newCam').value;
+            const existing = cueData.find(c => String(c.cam) === String(cam));
+            document.getElementById('newColor').value = existing ? existing.color : PRESETS[(cam - 1) % PRESETS.length] || PRESETS[0];
+            updateColorPreview();
+        }
+        function updateColorPreview() { document.getElementById('colorPreview').style.backgroundColor = document.getElementById('newColor').value; }
+        
+        function saveCue() {
+            const idx = parseInt(document.getElementById('editIndex').value);
+            const cam = document.getElementById('newCam').value || 1;
+            const color = document.getElementById('newColor').value;
+            const time = parseFloat(document.getElementById('newTime').value) || 2;
+            const text = document.getElementById('newText').value;
+            const lyric = document.getElementById('newLyric').value;
+
+            const conflict = cueData.find(c => String(c.cam) !== String(cam) && c.color === color);
+            if (conflict) {
+                if (!confirm(`Warning: Camera ${conflict.cam} is already using this color. Continue?`)) return;
+            }
+
+            const newCue = { cam, color, time, text, lyric };
+            if (idx === -1) cueData.push(newCue); else Object.assign(cueData[idx], newCue);
+
+            cueData.forEach(c => {
+                if (String(c.cam) === String(cam)) c.color = color;
+            });
+
+            renderCues(); 
+            closeModal();
+            saveToDisk();
+        }
+
+     /* --- RESIZER & TOUCH FIX --- */
+        /* --- OPTIMIZED RESIZER (NO JITTER) --- */
+const resizer = document.getElementById('resizer');
+const masterPane = document.getElementById('master-pane');
+const container = document.getElementById('main-container');
+let isResizing = false;
+let rafId = null;
+
+function startResizing(e) {
+    isResizing = true;
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none'; // Prevent text selection while dragging
+}
+
+function stopResizing() {
+    isResizing = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    if (rafId) cancelAnimationFrame(rafId);
+}
+
+function handleResize(clientY) {
+    if (!isResizing) return;
+
+    // Use requestAnimationFrame to sync with the browser's refresh rate
+    if (rafId) cancelAnimationFrame(rafId);
+    
+    rafId = requestAnimationFrame(() => {
+        const rect = container.getBoundingClientRect();
+        const relativeY = clientY - rect.top;
+        
+        // Boundaries: 100px minimum for top or bottom
+        if (relativeY > 100 && relativeY < rect.height - 100) {
+            masterPane.style.height = `${relativeY}px`;
+            masterPane.style.flex = 'none'; // Lock flex while manually sized
+        }
+    });
+}
+
+// Listeners
+resizer.addEventListener('mousedown', startResizing);
+window.addEventListener('mousemove', (e) => handleResize(e.clientY));
+window.addEventListener('mouseup', stopResizing);
+
+// Touch Support
+resizer.addEventListener('touchstart', (e) => {
+    startResizing();
+}, { passive: true });
+
+window.addEventListener('touchmove', (e) => {
+    if (isResizing) {
+        handleResize(e.touches[0].clientY);
+    }
+}, { passive: false });
+
+window.addEventListener('touchend', stopResizing);
+
+        /* --- KEYBOARD SHORTCUTS --- */
+        window.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (e.code === 'Space') { e.preventDefault(); togglePlayback(); }
+            if (e.key >= '1' && e.key <= '9') liveMark(parseInt(e.key));
+            if (e.key === '0') liveMark(10);
+        });
+        /* export import to .xlsx */
+        /**
+ * EXPORT: Converts allProjects into a single .xlsx file
+ * Each project name becomes a Sheet Name.
+ */
+function exportToExcel() {
+     if (typeof XLSX === 'undefined') return alert("Excel library not loaded.");
+    if (allProjects.length === 0) return alert("No projects to export!");
+
+    const wb = XLSX.utils.book_new();
+
+    allProjects.forEach(proj => {
+        // Create a worksheet from the cues array
+        // We exclude 'absStart' and 'globalIndex' to keep the Excel file clean
+        const cleanCues = proj.cues.map(({cam, color, time, text, lyric}) => ({
+            Camera: cam,
+            Color: color,
+            Duration: time,
+            Instruction: text,
+            Lyrics: lyric
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(cleanCues);
+        
+        // Add worksheet to workbook with Project Name as Sheet Name
+        // (Note: Excel sheet names are capped at 31 chars and cannot contain /\?*:[])
+        const safeName = proj.name.replace(/[\\\/\?\*\[\]\:]/g, "").substring(0, 31);
+        XLSX.utils.book_append_sheet(wb, ws, safeName || "kolsote");
+    });
+
+    // Generate and download file
+    XLSX.writeFile(wb, `CueApp_Backup_${new Date().toISOString().split('T')[0]}.xlsx`);
+   
+}
+      /* clear cache */ 
+// 4. Fixed Clear Cache
+async function clearAppCache() {
+    if (confirm("DANGER: This will permanently delete ALL data. Proceed?")) {
+        localStorage.clear();
+        const req = indexedDB.deleteDatabase(DB_NAME);
+        req.onsuccess = () => location.reload();
+    }
+}
+    
+/**
+ * IMPORT: Reads an .xlsx file and merges it into allProjects
+ */
+    async function importFromExcel(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+
+        for (const sheetName of workbook.SheetNames) {
+            const worksheet = workbook.Sheets[sheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+            const importedCues = jsonData.map(row => ({
+                cam: row.Camera || 1,
+                color: row.Color || "#7c4dff",
+                time: parseFloat(row.Duration) || 5,
+                text: row.Instruction || "",
+                lyric: row.Lyrics || ""
+            }));
+        
+            const newProj = {
+                id: Date.now() + Math.random(),
+                name: sheetName,
+                cues: importedCues
+            };
+
+            allProjects.push(newProj);
+        }
+
+        // Save everything to IndexedDB at once
+        await saveToDisk(); 
+        renderProjects();
+        alert("Import Successful!");
+        event.target.value = ""; 
+    };
+    reader.readAsArrayBuffer(file);
+}
+/**
+ * IMPORT: Reads an .xlsx file and merges it into allProjects
+ */
+    </script>
+    <script src="https://www.youtube.com/iframe_api"></script>
+</body>
+</html>
