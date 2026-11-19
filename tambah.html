@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#071312">
+  <title>Kelola Data — Dzikir</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Sora:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #071312; --card: #0d201e; --field: #091614;
+      --line: rgba(110,230,181,.14); --tx: #f2f6e4; --mut: #94a3b8;
+      --a: #10b981; --gold: #e6b30f; --bad: #f87171;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--bg); }
+    body {
+      margin: 0; color: var(--tx); font: 400 15px/1.55 Sora, system-ui, sans-serif;
+      background: radial-gradient(900px 500px at 80% -10%, #0c2923, transparent 70%), var(--bg);
+      padding: max(16px, env(safe-area-inset-top)) 14px max(40px, env(safe-area-inset-bottom));
+    }
+    .wrap { max-width: 720px; margin: 0 auto; }
+    h1 { font-size: 22px; margin: 4px 0 2px; }
+    .sub { color: var(--mut); font-size: 13px; margin: 0 0 14px; }
+    .status { font-size: 12.5px; padding: 9px 12px; border-radius: 12px; margin-bottom: 14px;
+      border: 1px solid var(--line); background: rgba(110,230,181,.06); color: var(--mut); white-space: pre-line; }
+    .status.bad { border-color: rgba(248,113,113,.5); background: rgba(248,113,113,.1); color: #fecaca; }
+    section { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px; margin-bottom: 14px; }
+    section > h2 { font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--a); margin: 0 0 12px; }
+    label, .lbl { display: block; font-size: 13px; font-weight: 600; margin: 12px 0 5px; }
+    label:first-of-type, .lbl:first-of-type { margin-top: 0; }
+    .req::after { content: " *"; color: var(--gold); }
+    .hint { font-weight: 400; color: var(--mut); font-size: 12px; }
+    input, select, textarea {
+      width: 100%; background: var(--field); color: var(--tx); border: 1px solid var(--line);
+      border-radius: 12px; padding: 11px 12px; font: inherit; font-size: 16px; outline: none;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--a); box-shadow: 0 0 0 3px rgba(16,185,129,.18); }
+    textarea { resize: vertical; min-height: 84px; }
+    #ar { direction: rtl; text-align: right; font-family: Amiri, serif; font-size: 24px; line-height: 2; min-height: 130px; }
+    .row { display: flex; gap: 10px; }
+    .row > * { flex: 1; min-width: 0; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip { display: inline-flex; align-items: center; gap: 7px; padding: 8px 12px; border-radius: 999px;
+      border: 1px solid var(--line); background: var(--field); font-size: 13px; font-weight: 600; margin: 0; cursor: pointer; }
+    .chip input { width: 18px; height: 18px; accent-color: var(--a); margin: 0; }
+    .chip:has(input:checked) { border-color: var(--a); background: rgba(16,185,129,.14); }
+    details summary { cursor: pointer; font-size: 13px; color: var(--mut); font-weight: 600; }
+    details[open] summary { margin-bottom: 4px; }
+    .msgs { margin: 10px 0 0; padding: 0; list-style: none; font-size: 12.5px; }
+    .msgs li { padding: 5px 0 5px 22px; position: relative; }
+    .msgs li::before { position: absolute; left: 0; }
+    .msgs .err { color: #fecaca; } .msgs .err::before { content: "✕"; color: var(--bad); }
+    .msgs .warn { color: #fde68a; } .msgs .warn::before { content: "!"; color: var(--gold); font-weight: 700; padding-left: 4px; }
+    .msgs .ok { color: #a7f3d0; } .msgs .ok::before { content: "✓"; color: var(--a); }
+    pre { margin: 10px 0 0; padding: 14px; background: #040c0b; border: 1px solid var(--line); border-radius: 12px;
+      overflow-x: auto; font: 12.5px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #d1fae5; white-space: pre; max-height: 360px; }
+    pre.dim { color: var(--mut); }
+    .target { font-size: 13.5px; margin: 0 0 4px; }
+    .target b { color: var(--gold); }
+    .target code, .steps code { background: rgba(255,255,255,.07); padding: 1px 6px; border-radius: 6px; font: 12.5px ui-monospace, Menlo, Consolas, monospace; }
+    .steps { font-size: 13px; color: var(--mut); margin: 8px 0 0; padding-left: 20px; }
+    .btns { display: flex; gap: 10px; margin-top: 12px; }
+    button { font: 700 14px Sora, sans-serif; border: 0; border-radius: 14px; padding: 13px 16px; cursor: pointer; flex: 1; }
+    .primary { background: linear-gradient(135deg, #10b981, #6ee6b5); color: #06130f; }
+    .primary:disabled { opacity: .35; cursor: not-allowed; }
+    .ghost { background: rgba(255,255,255,.07); color: var(--tx); flex: 0 0 auto; }
+    .preview { background: var(--field); border: 1px dashed var(--line); border-radius: 14px; padding: 14px; }
+    .preview .pt { display: flex; justify-content: space-between; gap: 8px; font-weight: 700; }
+    .preview .pn { color: var(--a); font-size: 12px; white-space: nowrap; }
+    .preview .par { font: 400 25px/2.05 Amiri, serif; direction: rtl; text-align: right; margin: 10px 0 6px; }
+    .preview .pid { font-size: 13.5px; color: #dbe7df; }
+    .preview .ps { font-size: 11.5px; color: var(--mut); margin-top: 8px; }
+    .preview .pnt { font-size: 11.5px; color: var(--mut); margin-top: 8px; border-left: 2px solid var(--gold); padding-left: 9px; }
+    .toast { position: fixed; left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(20px);
+      background: #10b981; color: #06130f; font-weight: 700; font-size: 13px; padding: 10px 18px; border-radius: 999px; opacity: 0; pointer-events: none; transition: .25s; }
+    .toast.show { opacity: 1; transform: translateX(-50%); }
+    .back { color: var(--mut); font-size: 13px; text-decoration: none; display: inline-block; margin-bottom: 6px; }
+      [hidden] { display: none !important; }
+    input[type=file] { padding: 10px; }
+    input[type=file]::file-selector-button { font: 700 13px Sora, sans-serif; border: 0; border-radius: 10px; padding: 9px 14px; margin-right: 12px; cursor: pointer; background: linear-gradient(135deg, #10b981, #6ee6b5); color: #06130f; }
+    .catlist { margin: 8px 0 0; padding: 0; list-style: none; font-size: 13px; }
+    .catlist li { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--line); }
+    .catlist li span:last-child { color: var(--mut); }
+    .changes { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+    .changes li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+    .changes li span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+    .changes li b { color: var(--a); }
+    .changes button { flex: 0 0 auto; padding: 5px 10px; font-size: 12px; border-radius: 10px; }
+    .empty { color: var(--mut); font-size: 13px; }
+    .help { color: var(--mut); font-size: 13px; margin: 0 0 10px; }
+  
+    .tabs { display: flex; gap: 6px; margin: 0 0 12px; position: sticky; top: 0; z-index: 5; padding: 8px 0; background: linear-gradient(var(--bg) 85%, transparent); overflow-x: auto; }
+    .tabs button { flex: 1 0 auto; padding: 10px 14px; font-size: 13px; background: rgba(255,255,255,.06); color: var(--mut); border-radius: 12px; white-space: nowrap; }
+    .tabs button[aria-selected=true] { background: rgba(16,185,129,.18); color: var(--tx); box-shadow: inset 0 0 0 1px var(--a); }
+    .tabs .cnt { display: inline-block; min-width: 18px; padding: 0 6px; margin-left: 6px; border-radius: 999px; background: var(--gold); color: #1a1303; font-size: 11px; line-height: 18px; }
+    .bar { display: flex; gap: 8px; margin: 0 0 12px; }
+    .bar button { flex: 1; padding: 9px 12px; font-size: 12.5px; }
+    button:disabled { opacity: .35; cursor: not-allowed; }
+    .danger { background: rgba(248,113,113,.14); color: #fecaca; flex: 0 0 auto; }
+    .rows { list-style: none; margin: 10px 0 0; padding: 0; }
+    .rows li { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .rows .main { flex: 1; min-width: 0; }
+    .rows .main b { display: block; font-size: 14px; overflow-wrap: anywhere; }
+    .rows .main .hint { display: block; overflow-wrap: anywhere; }
+    .rows .acts { display: flex; gap: 5px; flex: 0 0 auto; }
+    .mini { flex: 0 0 auto; padding: 7px 10px; font-size: 12.5px; border-radius: 10px; background: rgba(255,255,255,.07); color: var(--tx); }
+    .mini.del { background: rgba(248,113,113,.14); color: #fecaca; }
+    .banner { font-size: 13px; padding: 9px 12px; border-radius: 12px; margin: 0 0 12px; border: 1px solid rgba(230,179,15,.5); background: rgba(230,179,15,.1); color: #fde68a; }
+    .changes li b.del { color: var(--bad); } .changes li b.edit { color: var(--gold); }
+    .row.top { margin-bottom: 4px; }
+    @media (max-width: 480px) { .rows li { flex-wrap: wrap; } .rows .acts { width: 100%; justify-content: flex-end; } }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <a class="back" href="index.html">←back</a>
+  <!--<h1>Kelola Data Dzikir</h1>-->
+  <!--<p class="sub">Buka dzikir-data.js, lalu tambah, edit, hapus, atau urutkan bacaan, kategori, dan pengaturan. Unduh hasilnya sebagai dzikir-data_baru.js. Halaman ini tidak mengubah file asli.</p>-->
+  <section>
+    <h2>1. Buka file data</h2>
+    <!--<p class="help">Pilih file <code>dzikir-data.js</code> milik aplikasi. Isinya (pengaturan, kategori, dan semua bacaan) akan dibaca di sini.</p>-->
+    <input id="file" type="file" accept=".js,text/javascript,application/javascript,text/plain">
+    <div class="status" id="status" style="margin:12px 0 0" hidden></div>
+  </section>
+
+  <div id="appWrap" hidden>
+    <nav class="tabs" id="tabs" role="tablist">
+      <button type="button" role="tab" data-tab="items" aria-selected="true">Bacaan</button>
+      <button type="button" role="tab" data-tab="cats" aria-selected="false">Kategori</button>
+      <button type="button" role="tab" data-tab="cfg" aria-selected="false">Pengaturan</button>
+      <button type="button" role="tab" data-tab="out" aria-selected="false">Simpan<span class="cnt" id="chCnt" hidden>0</span></button>
+    </nav>
+    <div class="bar">
+      <button class="ghost" id="undo" type="button" disabled>↶ Urungkan</button>
+      <button class="ghost" id="resetAll" type="button" disabled>Kembalikan semua ke file asli</button>
+    </div>
+
+    <!-- ===== TAB BACAAN ===== -->
+    <div id="tab-items">
+      <section>
+        <h2>Daftar bacaan</h2>
+        <div class="row top">
+          <select id="flt" aria-label="Filter kategori"></select>
+          <input id="search" type="search" placeholder="Cari judul, sumber, terjemahan" aria-label="Cari bacaan">
+        </div>
+        <div class="hint" id="fltInfo"></div>
+        <ul class="rows" id="itemRows"></ul>
+        <div class="btns"><button class="primary" id="itemNew" type="button">＋ Bacaan baru</button></div>
+      </section>
+
+      <div id="itemEditor" hidden>
+        <div class="banner" id="edBanner"></div>
+        <section>
+          <h2>Kategori tujuan</h2>
+          <label class="req" for="cat">Masuk ke kategori</label>
+          <select id="cat"></select>
+          <div id="itemCatOpts">
+            <div id="subWrap" hidden>
+              <span class="lbl">Berlaku untuk waktu <span class="hint">(kosongkan = semua waktu)</span></span>
+              <div class="chips" id="subChips"></div>
+            </div>
+            <div id="extraWrap" hidden>
+              <span class="lbl">Tampilkan juga di <span class="hint">(opsional)</span></span>
+              <div class="chips" id="extraChips"></div>
+            </div>
+            <label for="pos">Posisi di dalam kategori</label>
+            <select id="pos"></select>
+          </div>
+        </section>
+
+        <section>
+          <h2>Isi bacaan</h2>
+          <label class="req" for="t">Judul</label>
+          <input id="t" type="text" placeholder="mis. Doa Keluar Rumah">
+          <div class="row">
+            <div><label class="req" for="n">Jumlah dibaca</label><input id="n" type="number" min="1" step="1" value="1" inputmode="numeric"></div>
+            <div style="flex:2"><label class="req" for="s">Sumber / hadits</label><input id="s" type="text" placeholder="mis. HR. Abu Dawud no. 5095"></div>
+          </div>
+          <label class="req" for="ar">Teks Arab</label>
+          <textarea id="ar" lang="ar" dir="rtl" placeholder="الصق النص هنا"></textarea>
+          <label class="req" for="idn">Terjemahan <span class="hint">(Enter = baris baru)</span></label>
+          <textarea id="idn" placeholder="Terjemahan bahasa Indonesia"></textarea>
+        </section>
+
+        <section>
+          <h2>Opsional</h2>
+          <label for="nt">Catatan / keutamaan</label>
+          <textarea id="nt" style="min-height:64px"></textarea>
+          <span class="lbl">Ayat Al-Qur'an <span class="hint">(isi ketiganya atau kosongkan)</span></span>
+          <div class="row">
+            <input id="q1" type="number" min="1" max="114" placeholder="Surah" inputmode="numeric" aria-label="Nomor surah">
+            <input id="q2" type="number" min="1" placeholder="Ayat awal" inputmode="numeric" aria-label="Ayat awal">
+            <input id="q3" type="number" min="1" placeholder="Ayat akhir" inputmode="numeric" aria-label="Ayat akhir">
+          </div>
+          <details style="margin-top:14px">
+            <summary>Lanjutan (audio & key)</summary>
+            <label for="au">File audio lokal <span class="hint">(mis. audio/nama.mp3)</span></label>
+            <input id="au" type="text" placeholder="audio/nama.mp3">
+            <label for="key">Key progres <span class="hint">(otomatis dibuat bila judul kembar)</span></label>
+            <input id="key" type="text" placeholder="kosongkan jika tidak perlu">
+            <div id="keepWrap" hidden style="margin-top:12px">
+              <label class="chip"><input type="checkbox" id="keepProg" checked>Pertahankan progres lama (pakai key dari judul sebelumnya)</label>
+            </div>
+          </details>
+        </section>
+
+        <section>
+          <h2>Pratinjau</h2>
+          <div class="preview" id="preview"></div>
+          <ul class="msgs" id="msgs"></ul>
+          <details style="margin-top:12px"><summary>Lihat kode yang akan ditulis</summary><pre id="out" class="dim"></pre></details>
+          <div class="btns">
+            <button class="ghost" id="itemCancel" type="button">Batal</button>
+            <button class="ghost" id="reset" type="button">Kosongkan</button>
+            <button class="primary" id="add" type="button" disabled>Tambahkan ke daftar</button>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- ===== TAB KATEGORI ===== -->
+    <div id="tab-cats" hidden>
+      <section>
+        <h2>Daftar kategori</h2>
+        <p class="help">Urutan di sini = urutan tile di menu utama.</p>
+        <ul class="rows" id="catRows"></ul>
+        <div class="btns"><button class="primary" id="catNew" type="button">＋ Kategori baru</button></div>
+      </section>
+
+      <section id="catEditor" hidden>
+        <h2 id="catEdTitle">Kategori baru</h2>
+        <label class="req" for="cn_label">Nama kategori <span class="hint">(tulisan di tile menu)</span></label>
+        <input id="cn_label" type="text" placeholder="mis. Wirid">
+        <div class="row">
+          <div><label for="cn_id">ID <span class="hint">(otomatis dari nama)</span></label><input id="cn_id" type="text" placeholder="wirid"></div>
+          <div><label for="cn_icon">Ikon Font Awesome</label><input id="cn_icon" type="text" placeholder="fa-solid fa-book-open"></div>
+        </div>
+        <label for="cn_title">Judul halaman daftar <span class="hint">(kosong = nama kategori; {sub} = nama sub-tab)</span></label>
+        <input id="cn_title" type="text" placeholder="mis. Wirid Harian">
+        <span class="lbl">Pilihan</span>
+        <div class="chips">
+          <label class="chip"><input type="checkbox" id="cn_alt">Ikon warna sekunder</label>
+          <label class="chip"><input type="checkbox" id="cn_full">Tile selebar 2 kolom</label>
+          <label class="chip"><input type="checkbox" id="cn_nobadge">Sembunyikan badge sisa</label>
+          <label class="chip"><input type="checkbox" id="cn_aq">Audio hanya untuk ayat Qur'an</label>
+          <label class="chip"><input type="checkbox" id="cn_untag">Tampung bacaan tanpa field p</label>
+        </div>
+        <details style="margin-top:14px" id="cn_adv">
+          <summary>Lanjutan (jam menyala, sub-tab, pengingat)</summary>
+          <span class="lbl">Tile menyala pada jam <span class="hint">(mulai – selesai, 0–24)</span></span>
+          <div class="row"><input id="cn_h1" type="number" min="0" max="24" step="0.5" placeholder="Mulai"><input id="cn_h2" type="number" min="0" max="24" step="0.5" placeholder="Selesai"></div>
+          <label for="cn_subs">Sub-tab <span class="hint">(satu per baris: id|Nama|batas jam — batas jam opsional)</span></label>
+          <textarea id="cn_subs" style="min-height:70px" placeholder="subuh|Subuh|10&#10;dzuhur|Dzuhur|14.5&#10;isya|Isya"></textarea>
+          <span class="lbl">Pengingat <span class="hint">(isi jam untuk mengaktifkan, kosongkan untuk menghapus)</span></span>
+          <div class="row"><input id="cn_rt" type="text" placeholder="05:00" inputmode="numeric"><input id="cn_rl" type="text" placeholder="Label di menu notifikasi"></div>
+          <div class="row" style="margin-top:10px"><input id="cn_rtitle" type="text" placeholder="Judul notifikasi"><input id="cn_rbody" type="text" placeholder="Isi notifikasi"></div>
+        </details>
+        <ul class="msgs" id="catMsgs"></ul>
+        <div class="btns">
+          <button class="ghost" id="catCancel" type="button">Batal</button>
+          <button class="primary" id="catAdd" type="button" disabled>Tambahkan kategori</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- ===== TAB PENGATURAN ===== -->
+    <div id="tab-cfg" hidden>
+      <section>
+        <h2>Pengaturan umum</h2>
+        <div class="hint" id="cfgInfo" style="margin-bottom:10px"></div>
+        <label for="c_app">Nama aplikasi <span class="hint">(notifikasi & media player)</span></label>
+        <input id="c_app" type="text">
+        <label for="c_tag">Tagline <span class="hint">(teks di splash screen)</span></label>
+        <input id="c_tag" type="text">
+        <label for="c_qari">Nama qari</label>
+        <input id="c_qari" type="text">
+        <span class="lbl">Audio</span>
+        <div class="chips"><label class="chip"><input type="checkbox" id="c_audio">Audio aktif (file audio sudah lengkap)</label></div>
+        <label for="c_ext">Ekstensi audio <span class="hint">(pisahkan dengan koma)</span></label>
+        <input id="c_ext" type="text" placeholder="mp3, m4a, ogg, wav">
+        <span class="lbl">Tombol halaman eksternal</span>
+        <div class="chips"><label class="chip"><input type="checkbox" id="c_xon">Tampilkan tombol di atas menu</label></div>
+        <div class="row" style="margin-top:10px"><input id="c_xl" type="text" placeholder="Label tombol"><input id="c_xu" type="text" placeholder="otherpage.html"></div>
+        <ul class="msgs" id="cfgMsgs"></ul>
+        <div class="btns"><button class="primary" id="cfgSave" type="button">Terapkan pengaturan</button></div>
+      </section>
+    </div>
+
+    <!-- ===== TAB SIMPAN ===== -->
+    <div id="tab-out" hidden>
+      <section>
+        <h2>Perubahan & unduh</h2>
+        <ul class="changes" id="changes"></ul>
+        <p class="empty" id="noChanges">Belum ada perubahan.</p>
+        <div class="btns">
+          <button class="primary" id="download" type="button" disabled>Unduh dzikir-data_baru.js</button>
+        </div>
+        <ol class="steps">
+          <li>Ganti nama file hasil unduhan menjadi <code>dzikir-data.js</code>, lalu timpa file lama.</li>
+          <li>Muat ulang aplikasi.</li>
+        </ol>
+        <p class="help" id="outNote" style="margin-top:10px"></p>
+      </section>
+    </div>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var NEW = '__new__', NONE = '__none__';
+  var S = null;          // state setelah file dibuka
+  var itemEd = null;     // editor bacaan: { entry: entry|null, unknown: [], baseKey: '' }
+  var catEd = null;      // editor kategori: { entry: entry|null }
+  var undoStack = [];
+  var lastCat = '';
+
+  // ---------- util ----------
+  var slug = function (t) {
+    return t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  };
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function clone(x) { return JSON.parse(JSON.stringify(x)); }
+  function oneLine(s) { return s.replace(/\s*\n\s*/g, ' ').trim(); }
+  function brHtml(s) { return s.trim().replace(/\s*\n\s*/g, '<br>'); }
+  function unBr(s) { return String(s === undefined ? '' : s).replace(/\s*<br\s*\/?>\s*/gi, '\n'); }
+  function toast(msg) { var t = $('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(function () { t.classList.remove('show'); }, 2000); }
+  function checked(box) { return [].slice.call($(box).querySelectorAll('input:checked')).map(function (i) { return i.value; }); }
+  function num(id) { var v = $(id).value.trim(); return v === '' ? null : Number(v); }
+  function canon(v) {
+    if (Array.isArray(v)) return '[' + v.map(canon).join(',') + ']';
+    if (v && typeof v === 'object') return '{' + Object.keys(v).sort().map(function (k) { return JSON.stringify(k) + ':' + canon(v[k]); }).join(',') + '}';
+    var j = JSON.stringify(v); return j === undefined ? 'undefined' : j;
+  }
+  function same(a, b) { return canon(a) === canon(b); }
+  function setFields(ids, vals) { ids.forEach(function (i, k) { $(i).value = vals ? vals[k] : ''; }); }
+
+  // ---------- baca & tulis teks JS ----------
+  function parseSource(text) {
+    var r = new Function(text + '\n;return { cfg: typeof dzikirConfig !== "undefined" ? dzikirConfig : null,' +
+      ' cats: typeof dzikirCategories !== "undefined" ? dzikirCategories : null,' +
+      ' data: typeof dzikirData !== "undefined" ? dzikirData : null,' +
+      ' old: typeof dzikirFiles !== "undefined" };')();
+    return { cfg: clone(r.cfg || {}), cats: r.cats ? clone(r.cats) : null, data: r.data ? clone(r.data) : null, old: r.old };
+  }
+  // ganti isi komentar & string dengan spasi (panjang sama) agar pencarian kurung aman
+  function mask(t) {
+    var o = t.split(''), i = 0, n = t.length;
+    function blank(k) { if (t[k] !== '\n' && t[k] !== '\r') o[k] = ' '; }
+    while (i < n) {
+      var c = t[i], d = t[i + 1];
+      if (c === '/' && d === '/') { while (i < n && t[i] !== '\n') { blank(i); i++; } }
+      else if (c === '/' && d === '*') { var e = t.indexOf('*/', i + 2); e = e < 0 ? n : e + 2; for (; i < e; i++) blank(i); }
+      else if (c === '"' || c === "'" || c === '`') {
+        var q = c; i++;
+        while (i < n && t[i] !== q) { if (t[i] === '\\') { blank(i); i++; } if (i < n) blank(i); i++; }
+        if (i < n) i++;
+      } else i++;
+    }
+    return o.join('');
+  }
+  // cari deklarasi `const name = [` atau `{` dan pasangan penutupnya
+  function findBlock(m, name, ch) {
+    var re = new RegExp('(?:^|[\\s;])(?:const|let|var)\\s+' + name + '\\s*=\\s*\\' + ch);
+    var r = re.exec(m); if (!r) return null;
+    var open = r.index + r[0].length - 1, depth = 0;
+    for (var i = open; i < m.length; i++) {
+      var c = m[i];
+      if ('[{('.indexOf(c) >= 0) depth++;
+      else if (']})'.indexOf(c) >= 0) { depth--; if (depth === 0) return { open: open, close: i }; }
+    }
+    return null;
+  }
+  function spans(m, a) {
+    var out = [], depth = 0, s = -1;
+    for (var i = a.open + 1; i < a.close; i++) {
+      var c = m[i];
+      if ('[{('.indexOf(c) >= 0) { if (depth === 0 && c === '{') s = i; depth++; }
+      else if (']})'.indexOf(c) >= 0) { depth--; if (depth === 0 && c === '}' && s >= 0) { out.push([s, i + 1]); s = -1; } }
+    }
+    return out;
+  }
+  // properti tingkat-atas sebuah object literal
+  function scanProps(text, m, a) {
+    var props = [], i = a.open + 1;
+    while (i < a.close) {
+      while (i < a.close && /\s/.test(m[i])) i++;
+      if (i >= a.close) break;
+      var ks = i, colon = -1, depth = 0, ve = -1;
+      for (var j = i; j < a.close; j++) {
+        var c = m[j];
+        if (depth === 0 && c === ':' && colon < 0) { colon = j; continue; }
+        if ('[{('.indexOf(c) >= 0) depth++;
+        else if (']})'.indexOf(c) >= 0) depth--;
+        else if (c === ',' && depth === 0 && colon >= 0) { ve = j; break; }
+      }
+      if (colon < 0) return null;
+      if (ve < 0) ve = a.close;
+      var key = text.slice(ks, colon).trim();
+      if (!key || /^["'`]/.test(key)) return null;
+      var vs = colon + 1; while (vs < ve && /\s/.test(m[vs])) vs++;
+      var vend = ve; while (vend > vs && /\s/.test(m[vend - 1])) vend--;
+      props.push({ key: key, ks: ks, vs: vs, ve: vend, end: ve < a.close ? ve + 1 : ve });
+      i = ve + 1;
+    }
+    return props;
+  }
+  // hapus satu entri beserta komanya (dan barisnya bila sendirian)
+  function delRange(text, m, lo, hi, start, valEnd) {
+    var s = start; while (s > lo && (text[s - 1] === ' ' || text[s - 1] === '\t')) s--;
+    var e = valEnd, j = e; while (j < hi && /\s/.test(m[j])) j++;
+    if (m[j] === ',') e = j + 1;
+    while (e < hi && (text[e] === ' ' || text[e] === '\t')) e++;
+    if (text[e] === '\r') e++;
+    if (text[e] === '\n') e++;
+    return { pos: s, del: e - s, text: '' };
+  }
+  function insertion(m, a, sp, i, blocks) {
+    var body = '\n' + blocks.join('\n');
+    if (i < 0) return { pos: a.open + 1, del: 0, text: body };
+    var end = sp[i][1], j = end;
+    while (j < a.close && /\s/.test(m[j])) j++;
+    if (m[j] === ',') return { pos: j + 1, del: 0, text: body };
+    return { pos: end, del: 0, text: ',' + body };
+  }
+
+  // ---------- serializer ----------
+  var ORDER = ['t', 'p', 'w', 'n', 'q', 's', 'ar', 'id', 'nt', 'au', 'key'];
+  var KNOWN = ORDER;
+  var CATKEYS = ['id', 'label', 'icon', 'title', 'alt', 'fullWidth', 'badge', 'audioOnlyQuran', 'includeUntagged', 'highlight', 'subtabs', 'reminder'];
+  function val(v) { return Array.isArray(v) ? '[' + v.map(function (x) { return JSON.stringify(x); }).join(', ') + ']' : JSON.stringify(v); }
+  function itemBlock(it) {
+    var ks = ORDER.filter(function (k) { return it[k] !== undefined; }).concat(Object.keys(it).filter(function (k) { return ORDER.indexOf(k) < 0; }));
+    return '  {\n' + ks.map(function (k) { return '    ' + k + ': ' + val(it[k]); }).join(',\n') + '\n  },';
+  }
+  function itemInline(it) { return itemBlock(it).replace(/^ {2}/, '').replace(/,$/, ''); }
+  function keyName(k) { return /^[A-Za-z_$][\w$]*$/.test(k) ? k : JSON.stringify(k); }
+  function toJS(v, ind, inline) {
+    if (Array.isArray(v)) {
+      if (!v.length) return '[]';
+      if (v.every(function (x) { return x === null || typeof x !== 'object'; })) return '[' + v.map(function (x) { return JSON.stringify(x); }).join(', ') + ']';
+      var pad = ind + '  ';
+      return '[\n' + v.map(function (x) { return pad + toJS(x, pad, true); }).join(',\n') + '\n' + ind + ']';
+    }
+    if (v && typeof v === 'object') {
+      var ks = Object.keys(v);
+      var flat = ks.every(function (k) { return v[k] === null || typeof v[k] !== 'object' || (Array.isArray(v[k]) && v[k].every(function (x) { return typeof x !== 'object'; })); });
+      if (inline && flat) return '{ ' + ks.map(function (k) { return keyName(k) + ': ' + toJS(v[k], ind); }).join(', ') + ' }';
+      var p2 = ind + '  ';
+      return '{\n' + ks.map(function (k) { return p2 + keyName(k) + ': ' + toJS(v[k], p2, true); }).join(',\n') + '\n' + ind + '}';
+    }
+    return JSON.stringify(v);
+  }
+  function orderedCat(c) {
+    var o = {};
+    CATKEYS.forEach(function (k) { if (c[k] !== undefined) o[k] = c[k]; });
+    Object.keys(c).forEach(function (k) { if (o[k] === undefined && c[k] !== undefined) o[k] = c[k]; });
+    return o;
+  }
+  function catInline(c) { return toJS(orderedCat(c), '  '); }
+  function catBlock(c) { return '  ' + catInline(c) + ','; }
+
+  // ---------- data helpers ----------
+  function tagsOf(it) { return (it.p === undefined || it.p === null || it.p === '') ? [] : [].concat(it.p); }
+  function untaggedIds() { return S.cats.filter(function (e) { return e.o.includeUntagged; }).map(function (e) { return e.o.id; }); }
+  function shownIn(it) { var t = tagsOf(it); return t.length ? t : untaggedIds(); }
+  function keyOf(it) { return it.key || slug(it.t || ''); }
+  function catById(id) { for (var i = 0; i < S.cats.length; i++) if (S.cats[i].o.id === id) return S.cats[i].o; }
+  function catLabel(id) { var c = catById(id); return c ? c.label : id; }
+  function countIn(id) { return S.data.filter(function (e) { return shownIn(e.o).indexOf(id) !== -1; }).length; }
+  function subCat(set) {
+    for (var i = 0; i < set.length; i++) { var c = catById(set[i]); if (c && c.subtabs && c.subtabs.length) return c; }
+    return null;
+  }
+  function intersects(a, b) { return a.some(function (x) { return b.indexOf(x) !== -1; }); }
+
+  // ---------- undo ----------
+  function snap() {
+    undoStack.push({ cfg: clone(S.cfg), cats: clone(S.cats), data: clone(S.data) });
+    if (undoStack.length > 60) undoStack.shift();
+  }
+  function undo() {
+    var s = undoStack.pop(); if (!s) return;
+    S.cfg = s.cfg; S.cats = s.cats; S.data = s.data;
+    closeItem(); closeCat(); fillCfg(); refreshAll(); toast('Dibatalkan ↶');
+  }
+  $('undo').onclick = undo;
+  $('resetAll').onclick = function () {
+    if (!confirm('Kembalikan semua data ke isi file asli? Semua perubahan akan hilang.')) return;
+    snap();
+    S.cfg = clone(S.origCfg);
+    S.cats = S.origCats.map(function (o, i) { return { o: clone(o), orig: i }; });
+    S.data = S.origData.map(function (o, i) { return { o: clone(o), orig: i }; });
+    closeItem(); closeCat(); fillCfg(); refreshAll(); toast('Dikembalikan ke file asli');
+  };
+
+  // ---------- tab ----------
+  function showTab(name) {
+    ['items', 'cats', 'cfg', 'out'].forEach(function (t) { $('tab-' + t).hidden = t !== name; });
+    [].forEach.call($('tabs').querySelectorAll('button'), function (b) { b.setAttribute('aria-selected', b.getAttribute('data-tab') === name ? 'true' : 'false'); });
+  }
+  $('tabs').addEventListener('click', function (e) { var b = e.target.closest('button[data-tab]'); if (b) showTab(b.getAttribute('data-tab')); });
+  function scrollTo(el) { setTimeout(function () { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 30); }
+
+  // ---------- 1. buka file ----------
+  $('file').addEventListener('change', function () {
+    var f = this.files && this.files[0];
+    if (!f) return;
+    if (S && diff().length && !confirm('Ada perubahan yang belum diunduh. Buka file lain dan buang perubahan itu?')) { this.value = ''; return; }
+    var rd = new FileReader();
+    rd.onload = function () { load(f.name, String(rd.result)); };
+    rd.onerror = function () { fileStatus('Gagal membaca file.', true); };
+    rd.readAsText(f, 'utf-8');
+  });
+  function fileStatus(msg, bad) { var st = $('status'); st.hidden = false; st.className = 'status' + (bad ? ' bad' : ''); st.textContent = msg; }
+  function fail(msg) { S = null; $('appWrap').hidden = true; fileStatus(msg, true); }
+
+  function load(name, text) {
+    var p;
+    try { p = parseSource(text); }
+    catch (e) { return fail('File tidak bisa dibaca sebagai dzikir-data.js:\n' + e.message); }
+    if (p.old && (!p.data || !p.data.length)) return fail('Ini format lama (bacaan terpisah di folder data/). Gunakan dzikir-data.js versi baru yang berisi dzikirData.');
+    if (!p.cats || !p.data) return fail('dzikirCategories atau dzikirData tidak ditemukan di file ini.');
+    var m = mask(text);
+    if (!findBlock(m, 'dzikirData', '[') || !findBlock(m, 'dzikirCategories', '[')) return fail('Deklarasi "const dzikirData = [" / "const dzikirCategories = [" tidak ditemukan.');
+    S = {
+      name: name, text: text,
+      cfg: clone(p.cfg), origCfg: clone(p.cfg),
+      cats: p.cats.map(function (o, i) { return { o: o, orig: i }; }), origCats: clone(p.cats),
+      data: p.data.map(function (o, i) { return { o: o, orig: i }; }), origData: clone(p.data)
+    };
+    undoStack = [];
+    fileStatus('Terbaca: ' + name + ' — ' + p.data.length + ' bacaan, ' + p.cats.length + ' kategori.');
+    $('appWrap').hidden = false;
+    closeItem(); closeCat(); fillCfg(); showTab('items');
+    refreshAll();
+  }
+
+  function refreshAll() {
+    renderFilter(); renderItemRows(); renderCatRows(); renderChanges();
+    $('undo').disabled = !undoStack.length;
+    if (itemEd) { fillCatSelect($('cat').value); renderExtras(); renderSubs(); rebuildPos(); update(); }
+    $('cfgInfo').textContent = (S.cfg.appName ? 'Aplikasi: ' + S.cfg.appName : 'Pengaturan umum terbaca') + '  ·  audio ' + (S.cfg.audioEnabled ? 'aktif' : 'nonaktif');
+  }
+
+  // ================= TAB BACAAN =================
+  function renderFilter() {
+    var cur = $('flt').value;
+    $('flt').innerHTML = '<option value="">Semua kategori (' + S.data.length + ')</option>' +
+      S.cats.map(function (e) { return '<option value="' + esc(e.o.id) + '">' + esc(e.o.label) + ' (' + countIn(e.o.id) + ')</option>'; }).join('') +
+      '<option value="' + NONE + '">Tanpa field p (' + S.data.filter(function (e) { return !tagsOf(e.o).length; }).length + ')</option>';
+    $('flt').value = [].some.call($('flt').options, function (o) { return o.value === cur; }) ? cur : '';
+  }
+  function inFilter(e) {
+    var fv = $('flt').value;
+    if (!fv) return true;
+    if (fv === NONE) return !tagsOf(e.o).length;
+    return shownIn(e.o).indexOf(fv) !== -1;
+  }
+  function renderItemRows() {
+    var q = $('search').value.trim().toLowerCase(), n = 0;
+    var html = S.data.map(function (e, i) {
+      if (!inFilter(e)) return '';
+      var o = e.o;
+      if (q && [o.t, o.s, o.id, o.nt].join(' ').toLowerCase().indexOf(q) === -1) return '';
+      n++;
+      var cats = shownIn(o).map(catLabel).join(', ') || '—';
+      var flag = e.orig === null ? ' <span class="hint">· baru</span>' : (same(o, S.origData[e.orig]) ? '' : ' <span class="hint">· diubah</span>');
+      return '<li data-i="' + i + '"><div class="main"><b>' + esc(o.t || '(tanpa judul)') + flag + '</b><span class="hint">' + esc(o.n) + '× · ' + esc(cats) + (o.s ? ' · ' + esc(o.s) : '') + '</span></div>' +
+        '<div class="acts"><button class="mini" type="button" data-act="up" aria-label="Naik">↑</button><button class="mini" type="button" data-act="down" aria-label="Turun">↓</button>' +
+        '<button class="mini" type="button" data-act="edit">Edit</button><button class="mini del" type="button" data-act="del">Hapus</button></div></li>';
+    }).join('');
+    $('itemRows').innerHTML = html || '<li class="empty">Tidak ada bacaan yang cocok.</li>';
+    $('fltInfo').textContent = n + ' bacaan ditampilkan';
+  }
+  $('flt').addEventListener('change', renderItemRows);
+  $('search').addEventListener('input', renderItemRows);
+  $('itemRows').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-act]'); if (!b) return;
+    var i = Number(b.closest('li').getAttribute('data-i')), en = S.data[i], act = b.getAttribute('data-act');
+    if (act === 'edit') openItem(en);
+    else if (act === 'del') {
+      if (!confirm('Hapus bacaan "' + en.o.t + '"?')) return;
+      snap();
+      if (itemEd && itemEd.entry === en) closeItem();
+      S.data.splice(i, 1); refreshAll(); toast('Bacaan dihapus');
+    } else {
+      var dir = act === 'up' ? -1 : 1, j = i + dir;
+      while (j >= 0 && j < S.data.length && !inFilter(S.data[j])) j += dir;
+      if (j < 0 || j >= S.data.length) return toast(dir < 0 ? 'Sudah paling atas' : 'Sudah paling bawah');
+      snap(); S.data.splice(i, 1); S.data.splice(j, 0, en); refreshAll();
+    }
+  });
+  $('itemNew').onclick = function () { openItem(null); };
+
+  // ---- editor bacaan ----
+  function openItem(entry) {
+    var o = entry ? entry.o : null, tags = o ? tagsOf(o) : [];
+    var known = tags.filter(function (id) { return !!catById(id); });
+    itemEd = { entry: entry, unknown: tags.filter(function (id) { return !catById(id); }), baseKey: o ? keyOf(o) : '' };
+    var first = entry ? (tags.length ? (known[0] || NONE) : NONE) : ($('flt').value && $('flt').value !== NONE && catById($('flt').value) ? $('flt').value : S.cats[0].o.id);
+    if (first === NONE && !untaggedIds().length) first = S.cats[0].o.id;
+    if (entry) {
+      setFields(['t', 'n', 's', 'ar', 'idn', 'nt', 'au', 'key'], [o.t || '', o.n === undefined ? 1 : o.n, o.s || '', o.ar || '', unBr(o.id), unBr(o.nt), o.au || '', o.key || '']);
+      var q = o.q || []; setFields(['q1', 'q2', 'q3'], [q[0] === undefined ? '' : q[0], q[1] === undefined ? '' : q[1], q[2] === undefined ? '' : q[2]]);
+    } else { clearForm(); }
+    $('keepProg').checked = true;
+    fillCatSelect(first);
+    renderExtras(entry && first !== NONE ? known.slice(1) : []);
+    renderSubs(o && o.w ? o.w : []);
+    rebuildPos();
+    $('edBanner').textContent = entry ? 'Mengedit: ' + (o.t || '(tanpa judul)') : 'Menambah bacaan baru';
+    $('add').textContent = entry ? 'Simpan perubahan' : 'Tambahkan ke daftar';
+    $('reset').hidden = !!entry;
+    $('itemEditor').hidden = false;
+    showTab('items'); update(); scrollTo($('itemEditor'));
+  }
+  function closeItem() { itemEd = null; $('itemEditor').hidden = true; }
+  $('itemCancel').onclick = function () {
+    if (itemEd && (itemEd.entry || $('t').value.trim() || $('ar').value.trim()) && !confirm('Tutup editor? Isian yang belum disimpan akan hilang.')) return;
+    closeItem();
+  };
+
+  function fillCatSelect(cur) {
+    lastCat = cur;
+    $('cat').innerHTML = S.cats.map(function (e) { return '<option value="' + esc(e.o.id) + '">' + esc(e.o.label) + '</option>'; }).join('') +
+      (untaggedIds().length ? '<option value="' + NONE + '">Tanpa field p (ikut kategori penampung)</option>' : '') +
+      '<option value="' + NEW + '">＋ Kategori baru…</option>';
+    $('cat').value = (cur === NONE || catById(cur)) ? cur : S.cats[0].o.id;
+    if ($('cat').value !== cur) lastCat = $('cat').value;
+  }
+  function renderExtras(keep) {
+    var cv = $('cat').value, none = cv === NONE, ex = keep || checked('extraChips');
+    var others = S.cats.filter(function (e) { return e.o.id !== cv; });
+    $('extraWrap').hidden = none || !others.length;
+    $('extraChips').innerHTML = others.map(function (e) {
+      return '<label class="chip"><input type="checkbox" value="' + esc(e.o.id) + '"' + (ex.indexOf(e.o.id) !== -1 ? ' checked' : '') + '>' + esc(e.o.label) + '</label>';
+    }).join('');
+  }
+  function targetSet() {
+    var cv = $('cat').value;
+    if (cv === NONE) return [];
+    var set = [cv].concat(checked('extraChips'));
+    return itemEd ? set.concat(itemEd.unknown) : set;
+  }
+  function renderSubs(keep) {
+    var sc = subCat(targetSet()), ks = keep || checked('subChips');
+    $('subWrap').hidden = !sc;
+    $('subChips').innerHTML = (sc ? sc.subtabs : []).map(function (s) {
+      return '<label class="chip"><input type="checkbox" value="' + esc(s.id) + '"' + (ks.indexOf(s.id) !== -1 ? ' checked' : '') + '>' + esc(s.label) + '</label>';
+    }).join('');
+  }
+  function rebuildPos() {
+    var set = targetSet(), tgt = set.length ? set : untaggedIds(), ent = itemEd && itemEd.entry;
+    var opts = (ent ? '<option value="keep">Tetap di posisi sekarang</option>' : '') + '<option value="end">Di akhir kategori</option>';
+    S.data.forEach(function (e, i) {
+      if (e !== ent && intersects(shownIn(e.o), tgt)) opts += '<option value="' + i + '">Setelah: ' + esc(e.o.t || '(tanpa judul)') + '</option>';
+    });
+    $('pos').innerHTML = opts;
+  }
+  function endIndex(tgt) {
+    var last = -1;
+    S.data.forEach(function (e, i) { if (intersects(shownIn(e.o), tgt)) last = i; });
+    return last >= 0 ? last + 1 : S.data.length;
+  }
+
+  function readForm() {
+    return {
+      cat: $('cat').value, subs: checked('subChips'), extras: checked('extraChips'),
+      t: $('t').value.trim(), n: num('n'), s: $('s').value.trim(),
+      ar: oneLine($('ar').value), id: brHtml($('idn').value), nt: brHtml($('nt').value),
+      q: [num('q1'), num('q2'), num('q3')], au: $('au').value.trim(), key: $('key').value.trim(),
+      keepProg: $('keepProg').checked
+    };
+  }
+  function build(f) {
+    var msgs = [], errors = 0, ent = itemEd && itemEd.entry, base = ent ? ent.o : null;
+    var err = function (m) { msgs.push(['err', m]); errors++; };
+    if (!f.t) err('Judul belum diisi');
+    if (!(f.n >= 1) || Math.floor(f.n) !== f.n) err('Jumlah dibaca harus bilangan bulat ≥ 1');
+    if (!f.s) err('Sumber belum diisi');
+    if (!f.ar) err('Teks Arab belum diisi');
+    if (!f.id) err('Terjemahan belum diisi');
+    var qFilled = f.q.filter(function (x) { return x !== null; }).length;
+    if (qFilled && qFilled < 3) err('Ayat Al-Qur\'an: isi surah, ayat awal, dan ayat akhir');
+    if (qFilled === 3 && (f.q[0] < 1 || f.q[0] > 114 || f.q[1] < 1 || f.q[2] < f.q[1])) err('Ayat Al-Qur\'an tidak valid (surah 1–114, ayat akhir ≥ ayat awal)');
+
+    var set = f.cat === NONE ? [] : [f.cat].concat(f.extras).concat(itemEd ? itemEd.unknown : []);
+    var p = set.length === 0 ? undefined : (set.length === 1 ? set[0] : set);
+    var sc = subCat(set), w;
+    if (sc && f.subs.length && f.subs.length < sc.subtabs.length) w = f.subs;
+
+    // key: harus unik di setiap kategori tempat bacaan tampil
+    var tgt = set.length ? set : untaggedIds(), usedKeys = {};
+    S.data.forEach(function (e) { if (e !== ent && intersects(shownIn(e.o), tgt)) usedKeys[keyOf(e.o)] = 1; });
+    var key = f.key;
+    if (f.t && !key) {
+      var base0 = slug(f.t) || 'item';
+      if (ent && !base.key && base0 !== itemEd.baseKey) {
+        if (f.keepProg) { key = itemEd.baseKey; msgs.push(['warn', 'Judul berubah → key "' + key + '" dipertahankan agar progres harian tidak hilang.']); }
+        else msgs.push(['warn', 'Judul berubah → progres harian bacaan ini dihitung dari awal.']);
+      }
+      if (!key && usedKeys[base0]) {
+        var i = 2; while (usedKeys[base0 + '-' + i]) i++;
+        key = base0 + '-' + i;
+        msgs.push(['warn', 'Judul sudah ada di kategori ini → key otomatis "' + key + '" agar progres tidak bentrok. Atau ganti judulnya.']);
+      }
+    }
+    $('keepWrap').hidden = !(ent && !base.key && f.t && !f.key && slug(f.t) !== itemEd.baseKey);
+    if (key && f.t && usedKeys[key]) err('Key "' + key + '" sudah dipakai di kategori yang sama');
+    if (f.au) msgs.push(['warn', 'Pastikan file audio ' + f.au + ' ada di folder audio.']);
+    if (!set.length && !untaggedIds().length) err('Tidak ada kategori penampung bacaan tanpa field p — pilih kategori');
+
+    var o = { t: f.t };
+    if (p !== undefined) o.p = p;
+    if (w) o.w = w;
+    o.n = f.n;
+    if (qFilled === 3) o.q = f.q;
+    o.s = f.s; o.ar = f.ar; o.id = f.id;
+    if (f.nt) o.nt = f.nt;
+    if (f.au) o.au = f.au;
+    if (key) o.key = key;
+    if (base) Object.keys(base).forEach(function (k) { if (KNOWN.indexOf(k) < 0) o[k] = base[k]; });
+    var unchanged = !!base && same(o, base);
+    if (unchanged) msgs.push(['warn', 'Belum ada perubahan dari isi semula.']);
+    return { ok: errors === 0, msgs: msgs, obj: o, unchanged: unchanged };
+  }
+
+  function update() {
+    if (!S || !itemEd) return;
+    var f = readForm(), r = build(f);
+    $('preview').innerHTML = '<div class="pt"><span id="pvT"></span><span class="pn">Dibaca <span id="pvN"></span>×</span></div>' +
+      '<div class="par" lang="ar" id="pvAr"></div><div class="pid" id="pvId"></div>' +
+      '<div class="ps" id="pvS"></div>' + (f.nt ? '<div class="pnt" id="pvNt"></div>' : '');
+    $('pvT').textContent = f.t || 'Judul bacaan';
+    $('pvN').textContent = f.n || '…';
+    $('pvAr').textContent = f.ar || 'النص العربي';
+    $('pvId').innerHTML = f.id || '<span style="color:var(--mut)">Terjemahan…</span>';
+    $('pvS').textContent = f.s ? 'Sumber: ' + f.s : '';
+    if (f.nt) $('pvNt').innerHTML = f.nt;
+    showMsgs($('msgs'), r.msgs, r.ok && !r.unchanged ? 'Semua kolom wajib sudah terisi' : '');
+    $('add').disabled = !r.ok || r.unchanged;
+    var out = $('out');
+    out.className = r.ok ? '' : 'dim';
+    out.textContent = r.ok ? itemBlock(r.obj) : 'Lengkapi kolom bertanda * untuk melihat kode.';
+  }
+  function showMsgs(el, list, okText) {
+    var ml = list.slice();
+    if (okText) ml.unshift(['ok', okText]);
+    el.innerHTML = ml.map(function (m) { return '<li class="' + m[0] + '">' + esc(m[1]) + '</li>'; }).join('');
+  }
+
+  $('add').onclick = function () {
+    var f = readForm(), r = build(f);
+    if (!r.ok || r.unchanged) return;
+    snap();
+    var ent = itemEd.entry, pv = $('pos').value, tgt = shownIn(r.obj);
+    if (ent) {
+      if (pv === 'keep') ent.o = r.obj;
+      else {
+        var ref = pv !== 'end' ? S.data[Number(pv)] : null;
+        S.data.splice(S.data.indexOf(ent), 1); ent.o = r.obj;
+        S.data.splice(ref ? S.data.indexOf(ref) + 1 : endIndex(tgt), 0, ent);
+      }
+      closeItem(); refreshAll(); toast('Perubahan disimpan ✓');
+    } else {
+      var at = pv !== 'end' && pv !== '' ? Number(pv) + 1 : endIndex(tgt);
+      S.data.splice(at, 0, { o: r.obj, orig: null });
+      var keepSub = f.subs, keepExtra = f.extras, cur = f.cat;
+      clearForm(); refreshAll(); fillCatSelect(cur); renderExtras(keepExtra); renderSubs(keepSub); rebuildPos(); update();
+      toast('Ditambahkan ke daftar ✓');
+    }
+  };
+  function clearForm() {
+    ['t', 's', 'ar', 'idn', 'nt', 'q1', 'q2', 'q3', 'au', 'key'].forEach(function (id) { $(id).value = ''; });
+    $('n').value = 1; $('keepProg').checked = true; $('keepWrap').hidden = true;
+  }
+  $('reset').onclick = function () { if (confirm('Kosongkan semua isian bacaan?')) { clearForm(); update(); } };
+
+  $('itemEditor').addEventListener('change', function (e) {
+    var id = e.target.id;
+    if (id === 'cat') {
+      if (e.target.value === NEW) { $('cat').value = lastCat; openCat(null); return; }
+      lastCat = e.target.value; renderExtras(); renderSubs(); rebuildPos();
+    } else if (e.target.closest('#extraChips')) { renderSubs(); rebuildPos(); }
+    update();
+  });
+  $('itemEditor').addEventListener('input', function (e) { if (e.target.id !== 'cat') update(); });
+
+  // ================= TAB KATEGORI =================
+  function renderCatRows() {
+    $('catRows').innerHTML = S.cats.map(function (e, i) {
+      var c = e.o, flag = e.orig === null ? ' <span class="hint">· baru</span>' : (same(c, S.origCats[e.orig]) ? '' : ' <span class="hint">· diubah</span>');
+      var extra = [c.subtabs ? c.subtabs.length + ' sub-tab' : '', c.reminder ? 'pengingat ' + c.reminder.time : '', c.includeUntagged ? 'menampung tanpa p' : ''].filter(Boolean).join(' · ');
+      return '<li data-i="' + i + '"><div class="main"><b>' + esc(c.label) + flag + '</b><span class="hint">' + esc(c.id) + ' · ' + countIn(c.id) + ' bacaan' + (extra ? ' · ' + esc(extra) : '') + '</span></div>' +
+        '<div class="acts"><button class="mini" type="button" data-act="up" aria-label="Naik">↑</button><button class="mini" type="button" data-act="down" aria-label="Turun">↓</button>' +
+        '<button class="mini" type="button" data-act="edit">Edit</button><button class="mini del" type="button" data-act="del">Hapus</button></div></li>';
+    }).join('');
+  }
+  $('catRows').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-act]'); if (!b) return;
+    var i = Number(b.closest('li').getAttribute('data-i')), en = S.cats[i], act = b.getAttribute('data-act');
+    if (act === 'edit') openCat(en);
+    else if (act === 'del') deleteCat(en);
+    else {
+      var j = i + (act === 'up' ? -1 : 1);
+      if (j < 0 || j >= S.cats.length) return toast(act === 'up' ? 'Sudah paling atas' : 'Sudah paling bawah');
+      snap(); S.cats.splice(i, 1); S.cats.splice(j, 0, en); refreshAll();
+    }
+  });
+  $('catNew').onclick = function () { openCat(null); };
+
+  var CATF = ['cn_label', 'cn_id', 'cn_icon', 'cn_title', 'cn_h1', 'cn_h2', 'cn_subs', 'cn_rt', 'cn_rl', 'cn_rtitle', 'cn_rbody'];
+  var CATC = ['cn_alt', 'cn_full', 'cn_nobadge', 'cn_aq', 'cn_untag'];
+  function clearCatForm() { CATF.forEach(function (i) { $(i).value = ''; }); CATC.forEach(function (i) { $(i).checked = false; }); }
+  function openCat(entry) {
+    catEd = { entry: entry };
+    clearCatForm();
+    var adv = false;
+    if (entry) {
+      var c = entry.o, r = c.reminder || {};
+      setFields(CATF, [c.label || '', c.id || '', c.icon || '', c.title || '',
+        c.highlight ? c.highlight[0] : '', c.highlight ? c.highlight[1] : '',
+        (c.subtabs || []).map(function (s) { return s.id + '|' + s.label + (s.until !== undefined ? '|' + s.until : ''); }).join('\n'),
+        r.time || '', r.label || '', r.title || '', r.body || '']);
+      $('cn_alt').checked = !!c.alt; $('cn_full').checked = !!c.fullWidth; $('cn_nobadge').checked = c.badge === false;
+      $('cn_aq').checked = !!c.audioOnlyQuran; $('cn_untag').checked = !!c.includeUntagged;
+      adv = !!(c.highlight || c.subtabs || c.reminder);
+    }
+    $('cn_adv').open = adv;
+    $('catEdTitle').textContent = entry ? 'Edit kategori: ' + entry.o.label : 'Kategori baru';
+    $('catAdd').textContent = entry ? 'Simpan perubahan' : 'Tambahkan kategori';
+    $('catEditor').hidden = false;
+    showTab('cats'); updateCat(); scrollTo($('catEditor'));
+  }
+  function closeCat() { catEd = null; $('catEditor').hidden = true; }
+  $('catCancel').onclick = closeCat;
+
+  function readCat() {
+    var ent = catEd && catEd.entry, base = ent ? ent.o : null;
+    var msgs = [], errors = 0;
+    var err = function (m) { msgs.push(['err', m]); errors++; };
+    var label = $('cn_label').value.trim();
+    var id = $('cn_id').value.trim() || slug(label);
+    if (!label) err('Nama kategori belum diisi');
+    if (label && !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(id)) err('ID hanya boleh huruf kecil, angka, dan tanda minus');
+    if (id && S.cats.some(function (e) { return e !== ent && e.o.id === id; })) err('ID "' + id + '" sudah dipakai kategori lain');
+    var c = { id: id, label: label };
+    c.icon = $('cn_icon').value.trim() || 'fa-solid fa-book-open';
+    c.title = $('cn_title').value.trim() || label;
+    if ($('cn_alt').checked) c.alt = true;
+    if ($('cn_full').checked) c.fullWidth = true;
+    if ($('cn_nobadge').checked) c.badge = false;
+    if ($('cn_aq').checked) c.audioOnlyQuran = true;
+    if ($('cn_untag').checked) c.includeUntagged = true;
+    var h1 = num('cn_h1'), h2 = num('cn_h2');
+    if (h1 !== null || h2 !== null) {
+      if (h1 === null || h2 === null || h1 < 0 || h2 > 24 || h2 <= h1) err('Jam menyala: isi mulai & selesai (0–24, selesai > mulai) atau kosongkan keduanya');
+      else c.highlight = [h1, h2];
+    }
+    var lines = $('cn_subs').value.split('\n').map(function (l) { return l.trim(); }).filter(Boolean);
+    if (lines.length) {
+      var seen = {}, subs = [];
+      lines.forEach(function (l) {
+        var p = l.split('|').map(function (x) { return x.trim(); });
+        if (p.length < 2 || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(p[0]) || !p[1]) return err('Sub-tab "' + l + '" harus berbentuk id|Nama|batas-jam');
+        if (seen[p[0]]) return err('ID sub-tab kembar: ' + p[0]);
+        seen[p[0]] = 1;
+        var s = { id: p[0], label: p[1] };
+        if (p[2] !== undefined && p[2] !== '') { if (isNaN(Number(p[2]))) return err('Batas jam sub-tab "' + p[0] + '" harus angka'); s.until = Number(p[2]); }
+        subs.push(s);
+      });
+      c.subtabs = subs;
+    }
+    var rt = $('cn_rt').value.trim();
+    if (rt) {
+      if (!/^([01]?\d|2[0-3]):[0-5]\d$/.test(rt)) err('Jam pengingat harus berformat HH:MM, mis. 05:00');
+      else {
+        c.reminder = {
+          time: rt.length === 4 ? '0' + rt : rt,
+          label: $('cn_rl').value.trim() || 'Pengingat ' + label.toLowerCase(),
+          title: $('cn_rtitle').value.trim() || 'Waktunya ' + c.title,
+          body: $('cn_rbody').value.trim() || 'Jangan lupa ' + label.toLowerCase() + '.'
+        };
+      }
+    }
+    if (base) Object.keys(base).forEach(function (k) { if (CATKEYS.indexOf(k) < 0) c[k] = base[k]; });
+    c = orderedCat(c);
+    if (ent) {
+      if (id && base.id !== id) msgs.push(['warn', 'ID berubah "' + base.id + '" → "' + id + '": bacaan yang memakai kategori ini ikut diperbarui. Tautan ?tab=' + base.id + ' dan progres lama kategori ini tidak ikut pindah.']);
+      var gone = (base.subtabs || []).map(function (s) { return s.id; }).filter(function (x) { return !(c.subtabs || []).some(function (s) { return s.id === x; }); });
+      if (gone.length) msgs.push(['warn', 'Sub-tab dihapus (' + gone.join(', ') + '): dikeluarkan juga dari bacaan yang memakainya.']);
+      if (base.includeUntagged && !c.includeUntagged && !S.cats.some(function (e) { return e !== ent && e.o.includeUntagged; }) && S.data.some(function (e) { return !tagsOf(e.o).length; }))
+        msgs.push(['warn', 'Tidak ada lagi kategori penampung bacaan tanpa field p; bacaan tanpa p tidak akan tampil di mana pun.']);
+    }
+    var unchanged = !!base && same(c, base);
+    if (unchanged) msgs.push(['warn', 'Belum ada perubahan dari isi semula.']);
+    return { ok: errors === 0, msgs: msgs, cat: c, unchanged: unchanged };
+  }
+  function updateCat() {
+    if (!S || !catEd) return;
+    var rc = readCat();
+    showMsgs($('catMsgs'), rc.msgs, rc.ok && !rc.unchanged ? 'Siap disimpan' : '');
+    $('catAdd').disabled = !rc.ok || rc.unchanged;
+  }
+  $('catEditor').addEventListener('input', updateCat);
+  $('catEditor').addEventListener('change', updateCat);
+
+  $('catAdd').onclick = function () {
+    var r = readCat(); if (!r.ok || r.unchanged) return;
+    snap();
+    var ent = catEd.entry;
+    if (ent) {
+      var old = ent.o, oldId = old.id, newId = r.cat.id;
+      var gone = (old.subtabs || []).map(function (s) { return s.id; }).filter(function (x) { return !(r.cat.subtabs || []).some(function (s) { return s.id === x; }); });
+      if (gone.length) S.data.forEach(function (e) {
+        if (shownIn(e.o).indexOf(oldId) === -1 || !e.o.w) return;
+        var nw = e.o.w.filter(function (x) { return gone.indexOf(x) < 0; });
+        if (nw.length) e.o.w = nw; else delete e.o.w;
+      });
+      if (newId !== oldId) S.data.forEach(function (e) {
+        var t = tagsOf(e.o);
+        if (t.indexOf(oldId) === -1) return;
+        var nt = t.map(function (x) { return x === oldId ? newId : x; });
+        e.o.p = nt.length === 1 ? nt[0] : nt;
+      });
+      ent.o = r.cat;
+      toast('Kategori disimpan ✓');
+    } else {
+      S.cats.push({ o: r.cat, orig: null });
+      toast('Kategori ditambahkan ✓');
+      if (itemEd) { /* kategori baru bisa langsung dipilih di editor bacaan */ }
+    }
+    closeCat(); refreshAll();
+  };
+
+  function deleteCat(entry) {
+    if (S.cats.length <= 1) return toast('Minimal harus ada satu kategori');
+    var id = entry.o.id;
+    var excl = S.data.filter(function (e) { var s = shownIn(e.o); return s.length === 1 && s[0] === id; });
+    var part = S.data.filter(function (e) { return tagsOf(e.o).indexOf(id) !== -1 && excl.indexOf(e) === -1; });
+    var msg = 'Hapus kategori "' + entry.o.label + '"?';
+    if (excl.length) msg += '\n\n' + excl.length + ' bacaan yang hanya ada di kategori ini ikut DIHAPUS.';
+    if (part.length) msg += '\n' + part.length + ' bacaan yang juga tampil di kategori lain hanya dilepas dari kategori ini.';
+    msg += '\n\nTindakan ini bisa dibatalkan dengan tombol Urungkan.';
+    if (!confirm(msg)) return;
+    snap();
+    if (itemEd && (!itemEd.entry || excl.indexOf(itemEd.entry) !== -1 || $('cat').value === id)) closeItem();
+    if (catEd && catEd.entry === entry) closeCat();
+    S.data = S.data.filter(function (e) { return excl.indexOf(e) === -1; });
+    part.forEach(function (e) {
+      var t = tagsOf(e.o).filter(function (x) { return x !== id; });
+      e.o.p = t.length === 1 ? t[0] : t;
+    });
+    S.cats.splice(S.cats.indexOf(entry), 1);
+    refreshAll(); toast('Kategori dihapus');
+  }
+
+  // ================= TAB PENGATURAN =================
+  function fillCfg() {
+    var c = S.cfg;
+    setFields(['c_app', 'c_tag', 'c_qari', 'c_ext', 'c_xl', 'c_xu'], [c.appName || '', c.tagline || '', c.qariName || '',
+      (c.audioExtensions || []).join(', '), c.externalPage ? c.externalPage.label || '' : '', c.externalPage ? c.externalPage.url || '' : '']);
+    $('c_audio').checked = !!c.audioEnabled;
+    $('c_xon').checked = !!c.externalPage;
+    $('cfgMsgs').innerHTML = '';
+  }
+  $('cfgSave').onclick = function () {
+    var c = clone(S.cfg), msgs = [], bad = false;
+    function setOrDel(k, v) { if (v === '' || v === undefined) delete c[k]; else c[k] = v; }
+    setOrDel('appName', $('c_app').value.trim());
+    setOrDel('tagline', $('c_tag').value.trim());
+    setOrDel('qariName', $('c_qari').value.trim());
+    c.audioEnabled = $('c_audio').checked;
+    var ext = $('c_ext').value.split(',').map(function (x) { return x.trim().replace(/^\./, '').toLowerCase(); }).filter(Boolean);
+    if (ext.some(function (x) { return !/^[a-z0-9]+$/.test(x); })) { msgs.push(['err', 'Ekstensi audio hanya huruf/angka, pisahkan dengan koma']); bad = true; }
+    else if (ext.length) c.audioExtensions = ext; else delete c.audioExtensions;
+    if ($('c_xon').checked) {
+      var xl = $('c_xl').value.trim(), xu = $('c_xu').value.trim();
+      if (!xl || !xu) { msgs.push(['err', 'Tombol eksternal aktif: label dan URL wajib diisi']); bad = true; }
+      else c.externalPage = Object.assign({}, S.cfg.externalPage || {}, { label: xl, url: xu });
+    } else delete c.externalPage;
+    if (bad) return showMsgs($('cfgMsgs'), msgs);
+    if (same(c, S.cfg)) return showMsgs($('cfgMsgs'), [['warn', 'Belum ada perubahan dari isi semula.']]);
+    snap(); S.cfg = c; refreshAll();
+    showMsgs($('cfgMsgs'), [['ok', 'Pengaturan diterapkan']]); toast('Pengaturan diterapkan ✓');
+  };
+
+  // ================= PERUBAHAN & UNDUH =================
+  function movedList(entries) {
+    var prev = -1, moved = false;
+    entries.forEach(function (e) { if (e.orig === null) return; if (e.orig < prev) moved = true; prev = Math.max(prev, e.orig); });
+    return moved;
+  }
+  function diff() {
+    var out = [], pres, K;
+    // pengaturan
+    var keys = Object.keys(S.origCfg).concat(Object.keys(S.cfg).filter(function (k) { return !(k in S.origCfg); }));
+    keys.forEach(function (k) { if (!same(S.origCfg[k], S.cfg[k])) out.push(['edit', 'Pengaturan', k]); });
+    // kategori
+    pres = {}; S.cats.forEach(function (e) { if (e.orig !== null) pres[e.orig] = 1; });
+    S.cats.forEach(function (e) {
+      if (e.orig === null) out.push(['add', 'Kategori ditambah', e.o.label]);
+      else if (!same(e.o, S.origCats[e.orig])) out.push(['edit', 'Kategori diubah', e.o.label]);
+    });
+    S.origCats.forEach(function (c, i) { if (!pres[i]) out.push(['del', 'Kategori dihapus', c.label]); });
+    if (movedList(S.cats)) out.push(['edit', 'Urutan kategori diubah', '']);
+    // bacaan
+    pres = {}; S.data.forEach(function (e) { if (e.orig !== null) pres[e.orig] = 1; });
+    S.data.forEach(function (e) {
+      if (e.orig === null) out.push(['add', 'Bacaan ditambah', e.o.t + ' → ' + shownIn(e.o).map(catLabel).join(', ')]);
+      else if (!same(e.o, S.origData[e.orig])) out.push(['edit', 'Bacaan diubah', e.o.t]);
+    });
+    S.origData.forEach(function (c, i) { if (!pres[i]) out.push(['del', 'Bacaan dihapus', c.t]); });
+    if (movedList(S.data)) out.push(['edit', 'Urutan bacaan diubah', '']);
+    return out;
+  }
+  function renderChanges() {
+    var d = diff();
+    $('changes').innerHTML = d.map(function (c) {
+      return '<li><span><b class="' + (c[0] === 'del' ? 'del' : c[0] === 'edit' ? 'edit' : '') + '">' + esc(c[1]) + '</b> ' + esc(c[2]) + '</span></li>';
+    }).join('');
+    $('noChanges').hidden = d.length > 0;
+    $('download').disabled = d.length === 0;
+    $('resetAll').disabled = d.length === 0;
+    $('chCnt').hidden = d.length === 0; $('chCnt').textContent = d.length;
+    $('outNote').textContent = d.length ? 'Perubahan bisa dibatalkan satu per satu lewat tombol Urungkan di atas sebelum mengunduh.' : '';
+  }
+
+  // ---------- hasilkan file ----------
+  // Mode "surgical": hanya bagian yang berubah yang ditulis ulang; komentar & format lain tetap.
+  function arrayOps(text, m, a, sp, entries, orig, inlineFn, blockFn) {
+    var prev = -1, present = {}, ops = [];
+    for (var i = 0; i < entries.length; i++) {
+      if (entries[i].orig === null) continue;
+      if (entries[i].orig <= prev) return null;
+      prev = entries[i].orig; present[prev] = 1;
+    }
+    sp.forEach(function (s, k) { if (!present[k]) ops.push(delRange(text, m, a.open + 1, a.close, s[0], s[1])); });
+    entries.forEach(function (e) {
+      if (e.orig !== null && !same(e.o, orig[e.orig])) ops.push({ pos: sp[e.orig][0], del: sp[e.orig][1] - sp[e.orig][0], text: inlineFn(e.o) });
+    });
+    var groups = {}, last = -1;
+    entries.forEach(function (e) {
+      if (e.orig !== null) last = e.orig;
+      else (groups[last] = groups[last] || []).push(blockFn(e.o));
+    });
+    Object.keys(groups).forEach(function (k) { ops.push(insertion(m, a, sp, Number(k), groups[k])); });
+    return ops;
+  }
+  // Mode "regen": tulis ulang seluruh isi array (komentar di dalam array hilang; blok tak berubah tetap utuh)
+  function regenArray(text, a, sp, entries, orig, inlineFn) {
+    var ok = sp.length === orig.length;
+    var pieces = entries.map(function (e) {
+      return (ok && e.orig !== null && same(e.o, orig[e.orig])) ? text.slice(sp[e.orig][0], sp[e.orig][1]) : inlineFn(e.o);
+    });
+    return [{ pos: a.open + 1, del: a.close - a.open - 1, text: '\n' + pieces.map(function (p) { return '  ' + p + ','; }).join('\n') + '\n' }];
+  }
+  function cfgOps(text, m, rg, cfg, orig, regen) {
+    if (regen) return [{ pos: rg.open, del: rg.close - rg.open + 1, text: toJS(cfg, '') }];
+    var props = scanProps(text, m, rg); if (!props) return null;
+    var byKey = {}; props.forEach(function (p) { byKey[p.key] = p; });
+    var keys = Object.keys(orig).concat(Object.keys(cfg).filter(function (k) { return !(k in orig); })), ops = [], adds = [], failed = false;
+    keys.forEach(function (k) {
+      if (same(orig[k], cfg[k])) return;
+      var p = byKey[k];
+      if (cfg[k] === undefined) { if (!p) failed = true; else ops.push(delRange(text, m, rg.open + 1, rg.close, p.ks, p.ve)); }
+      else if (p) ops.push({ pos: p.vs, del: p.ve - p.vs, text: toJS(cfg[k], '  ') });
+      else if (k in orig) failed = true;
+      else adds.push(k);
+    });
+    if (failed) return null;
+    if (adds.length) {
+      var add = adds.map(function (k) { return '\n  ' + keyName(k) + ': ' + toJS(cfg[k], '  ') + ','; }).join('');
+      if (!props.length) ops.push({ pos: rg.open + 1, del: 0, text: add });
+      else {
+        var survivors = props.filter(function (pp) { return cfg[pp.key] !== undefined; });
+        var last = survivors.length ? survivors[survivors.length - 1] : null;
+        if (!last) { ops.push({ pos: rg.open + 1, del: 0, text: add }); return ops; }
+        var j = last.ve;
+        while (j < rg.close && /\s/.test(m[j])) j++;
+        if (m[j] === ',') ops.push({ pos: j + 1, del: 0, text: add });
+        else ops.push({ pos: last.ve, del: 0, text: ',' + add });
+      }
+    }
+    return ops;
+  }
+  function apply(text, ops, nl) {
+    ops.sort(function (a, b) { return b.pos - a.pos || b.del - a.del; });
+    ops.forEach(function (o) { text = text.slice(0, o.pos) + o.text.replace(/\n/g, nl) + text.slice(o.pos + o.del); });
+    return text;
+  }
+  function buildOutput() {
+    var text0 = S.text, nl = text0.indexOf('\r\n') >= 0 ? '\r\n' : '\n', m = mask(text0);
+    var da = findBlock(m, 'dzikirData', '['), ca = findBlock(m, 'dzikirCategories', '['), cg = findBlock(m, 'dzikirConfig', '{');
+    var dsp = spans(m, da), csp = spans(m, ca), cfgChanged = !same(S.cfg, S.origCfg);
+    var expectData = S.data.map(function (e) { return e.o; }), expectCats = S.cats.map(function (e) { return e.o; });
+    var lastErr = null;
+    for (var mode = 0; mode < 2; mode++) {
+      try {
+        var ops = [], regen = mode === 1;
+        var dOps = (!regen && dsp.length === S.origData.length) ? arrayOps(text0, m, da, dsp, S.data, S.origData, itemInline, itemBlock) : null;
+        ops = ops.concat(dOps || regenArray(text0, da, dsp, S.data, S.origData, itemInline));
+        var cOps = (!regen && csp.length === S.origCats.length) ? arrayOps(text0, m, ca, csp, S.cats, S.origCats, catInline, catBlock) : null;
+        ops = ops.concat(cOps || regenArray(text0, ca, csp, S.cats, S.origCats, catInline));
+        if (cfgChanged) {
+          if (!cg) throw new Error('dzikirConfig tidak ditemukan');
+          ops = ops.concat(cfgOps(text0, m, cg, S.cfg, S.origCfg, regen) || cfgOps(text0, m, cg, S.cfg, S.origCfg, true));
+        }
+        var text = apply(text0, ops, nl);
+        // verifikasi: hasil harus terbaca & sama persis dengan yang dikerjakan di sini
+        var chk = parseSource(text);
+        if (same(chk.data, expectData) && same(chk.cats, expectCats) && same(chk.cfg, S.cfg)) return { text: text, regen: regen };
+        lastErr = new Error('Hasil tidak cocok dengan data yang diharapkan');
+      } catch (e) { lastErr = e; }
+    }
+    throw lastErr;
+  }
+  $('download').onclick = function () {
+    var res;
+    try { res = buildOutput(); }
+    catch (e) { return alert('Gagal membuat file: ' + e.message); }
+    var blob = new Blob([res.text], { type: 'text/javascript;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'dzikir-data_baru.js';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+    toast('dzikir-data_baru.js diunduh ✓');
+    if (res.regen) alert('Catatan: karena urutan/struktur berubah, komentar di dalam daftar bacaan/kategori tidak ikut tertulis. Isi data tetap lengkap dan sudah diverifikasi.');
+  };
+  window.addEventListener('beforeunload', function (e) {
+    if (S && diff().length) { e.preventDefault(); e.returnValue = ''; }
+  });
+})();
+</script>
+</body>
+</html>
